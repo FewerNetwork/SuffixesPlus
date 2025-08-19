@@ -179,6 +179,16 @@ public class GuiManager {
                         hasAccess = true;
                     }
 
+                    if (player.hasPermission("suffixsplus.access.all")) hasAccess = true;
+
+                    try {
+                        if (!plugin.getSuffixDatabase().getAllSuffixes().contains(formattedSuffix) && player.hasPermission("suffixsplus.access.purchasable")) hasAccess = true;
+                    } catch (SQLException e) {
+                        player.sendMessage(ChatColor.RED + "There was an error while connecting to the database, please contact the server administrator or try again later.");
+                        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                        e.printStackTrace();
+                    }
+
                     ItemStack item = createSuffixItem(suffix, hasAccess, player);
 
                     ItemMeta meta = item.getItemMeta();

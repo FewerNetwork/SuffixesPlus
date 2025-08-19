@@ -208,17 +208,23 @@ public class InventoryClickListener implements Listener {
     }
 
     private void checkSuffixAccess(Player player, String cleanedSuffix, String permission) {
-        // First, try to check if the player has custom access to the suffix
         luckPermsHook.checkAccess(player.getUniqueId(), player.getName(),
                 plugin.getConfig().getString("suffix.prefix", "suffix_"), cleanedSuffix, hasAccess -> {
                     if (hasAccess) {
                         handleSuffixAssignment(player, cleanedSuffix);
                     } else {
-                        // If the player doesn't have access, check their permissions
-                        if (player.hasPermission(permission)) {
-                            handleSuffixAssignment(player, cleanedSuffix);
-                        } else {
-                            handleSuffixPurchase(player, cleanedSuffix);
+                        try {
+                            if (player.hasPermission(permission) || player.hasPermission("suffixsplus.access.all")) {
+                                handleSuffixAssignment(player, cleanedSuffix);
+                            } else if (!plugin.getSuffixDatabase().getAllSuffixes().contains(cleanedSuffix) && player.hasPermission("suffixsplus.access.purchasable")) {
+                                handleSuffixAssignment(player, cleanedSuffix);
+                            } else {
+                                handleSuffixPurchase(player, cleanedSuffix);
+                            }
+                        } catch (SQLException e) {
+                            player.sendMessage(ChatColor.RED + "There was an error while connecting to the database. Please try again later.");
+                            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                            e.printStackTrace();
                         }
                     }
                 });

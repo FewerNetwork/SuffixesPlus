@@ -3,6 +3,8 @@ package me.zombieman.dev.suffixesplus.managers;
 import me.zombieman.dev.suffixesplus.SuffixesPlus;
 import me.zombieman.dev.suffixesplus.hooks.LuckPermsHook;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
 import java.sql.SQLException;
@@ -32,7 +34,16 @@ public class TempSuffixManager {
                         String suffix = currentSuffix.replace(configSuffix, "");
 
                         luckPermsHook.checkAccessAsync(player.getUniqueId(), player.getName(), configSuffix, currentSuffix).thenAccept(hasAccess -> {
-                            if (hasAccess || player.hasPermission("suffixsplus.suffix." + suffix)) return;
+                            if (hasAccess || player.hasPermission("suffixsplus.suffix." + suffix) || player.hasPermission("suffixsplus.access.all")) return;
+
+                            boolean r = false;
+                            try {
+                                if (!plugin.getSuffixDatabase().getAllSuffixes().contains(suffix) && player.hasPermission("suffixsplus.access.purchasable")) r = true;
+                            } catch (SQLException e) {
+                                e.printStackTrace();
+                            }
+
+                            if (r) return;
 
                             Bukkit.getScheduler().runTask(plugin, () -> {
                                 luckPermsHook.removeSuffix(player, suffix);
