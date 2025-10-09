@@ -4,6 +4,11 @@ database:
   url: jdbc:mysql://HOST:PORT/NAME
 
 suffix:
+  # A list of different ways of hiding the suffix if the user doesn't own it.
+  # Permission to give the suffix: suffixsplus.type.<type>
+  # <type> will be the exact same as in the list bellow
+  hide:
+    - custom
   # If notifications is set to true people can turn off notifications!
   notification: true
   prefix: "suffix_"

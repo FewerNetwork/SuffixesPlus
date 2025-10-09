@@ -335,4 +335,30 @@ public class LuckPermsHook {
     public boolean isPurchasable(String groupName) throws SQLException {
         return plugin.getSuffixDatabase().suffixDoesNotExists(groupName);
     }
+
+
+    /**
+     * Checks if a given group has a specific permission.
+     *
+     * @param groupName   The name of the group (with or without prefix)
+     * @param permission  The permission node to check
+     * @return true if the group has that permission, false otherwise
+     */
+    public boolean groupHasPermission(String groupName, String permission) {
+        String prefix = plugin.getConfig().getString("suffix.prefix", "suffix_");
+        if (!groupName.startsWith(prefix)) {
+            groupName = prefix + groupName;
+        }
+
+        Group group = luckPerms.getGroupManager().getGroup(groupName);
+        if (group == null) {
+            plugin.getLogger().warning("Group not found: " + groupName);
+            return false;
+        }
+
+        return group.getNodes().stream()
+                .filter(node -> node.getKey().equalsIgnoreCase(permission))
+                .anyMatch(node -> node.getValue());
+    }
+
 }

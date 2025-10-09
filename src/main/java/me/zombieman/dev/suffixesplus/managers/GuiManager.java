@@ -30,9 +30,10 @@ public class GuiManager {
     }
 
     private final Map<UUID, Integer> playerPages = new HashMap<>();
-
     public void openSuffixGui(Player player, int page) throws SQLException {
+
         List<String> allSuffixes = luckPermsHook.getAllSuffixes();
+        allSuffixes.removeIf(suffix -> suffix == null || suffix.isEmpty());
 
         if (allSuffixes.isEmpty()) {
             player.sendMessage(ChatColor.RED + "There aren't any suffixes in this list!");
@@ -54,23 +55,42 @@ public class GuiManager {
         // Async fetch all suffix items
         List<CompletableFuture<ItemStack>> futures = new ArrayList<>();
         for (String suffix : allSuffixes) {
-            futures.add(createSuffixItemAsync(player, suffix));
+            CompletableFuture<ItemStack> suffixItemAsync = createSuffixItemAsync(player, suffix);
+
+            if (suffixItemAsync == null) {
+                continue;
+            }
+
+            CompletableFuture<ItemStack> handledFuture = suffixItemAsync.thenApply(item -> {
+                if (item == null) {
+                    System.out.println("[SuffixGUI] Suffix is null, skipping: " + suffix);
+                }
+                return item;
+            });
+
+            futures.add(handledFuture);
         }
 
         // When all items are ready, place them in GUI
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).thenRun(() -> {
+
             List<ItemStack> owned = new ArrayList<>();
             List<ItemStack> notOwned = new ArrayList<>();
 
             for (CompletableFuture<ItemStack> future : futures) {
                 try {
+                    if (future.get() == null) continue;
+
                     ItemStack item = future.get();
+
                     ItemMeta meta = item.getItemMeta();
-                    if (meta != null && meta.getPersistentDataContainer().get(new NamespacedKey(plugin, "ownsSuffix"), PersistentDataType.BOOLEAN)) {
-                        owned.add(item);
-                    } else {
-                        notOwned.add(item);
-                    }
+                    boolean owns = meta != null && Boolean.TRUE.equals(
+                            meta.getPersistentDataContainer().get(new NamespacedKey(plugin, "ownsSuffix"), PersistentDataType.BOOLEAN)
+                    );
+
+                    if (owns) owned.add(item);
+                    else notOwned.add(item);
+
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -87,7 +107,6 @@ public class GuiManager {
                 gui.setItem(slot, allItems.get(i));
             }
 
-            // Player head
             try {
                 ItemStack head = createPlayerHead(player, luckPermsHook.getPlayerSuffixes(player.getUniqueId()).size());
                 gui.setItem(43, head);
@@ -99,7 +118,6 @@ public class GuiManager {
             gui.setItem(41, createRandomSuffixButton());
             gui.setItem(39, createInfoButton());
 
-            // Navigation
             if (page < maxPage - 1) gui.setItem(44, createNavigationButton("Next", Material.ARROW));
             if (page > 0) gui.setItem(36, createNavigationButton("Previous", Material.ARROW));
 
@@ -116,9 +134,11 @@ public class GuiManager {
                 setCurrentPage(player, page);
                 player.openInventory(gui);
             });
+        }).exceptionally(ex -> {
+            ex.printStackTrace();
+            return null;
         });
     }
-
 
     // Helper method to create navigation buttons
     private ItemStack createNavigationButton(String label, Material material) {
@@ -182,12 +202,21 @@ public class GuiManager {
                     if (player.hasPermission("suffixsplus.access.all")) hasAccess = true;
 
                     try {
-                        if (!plugin.getSuffixDatabase().getAllSuffixes().contains(formattedSuffix) && player.hasPermission("suffixsplus.access.purchasable")) hasAccess = true;
+                        if (!plugin.getSuffixDatabase().getAllSuffixes().contains(formattedSuffix) && player.hasPermission("suffixsplus.access.purchasable"))
+                            hasAccess = true;
                     } catch (SQLException e) {
                         player.sendMessage(ChatColor.RED + "There was an error while connecting to the database, please contact the server administrator or try again later.");
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                         e.printStackTrace();
                     }
+                    boolean result = false;
+                    for (String list : plugin.getConfig().getStringList("suffix.hide")) {
+                        if (!hasAccess && luckPermsHook.groupHasPermission(suffix, "suffixsplus.type." + list)) {
+                            result = true;
+                        }
+                    }
+
+                    if (result) return null;
 
                     ItemStack item = createSuffixItem(suffix, hasAccess, player);
 
