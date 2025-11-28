@@ -107,12 +107,9 @@ public class GuiManager {
                 gui.setItem(slot, allItems.get(i));
             }
 
-            try {
-                ItemStack head = createPlayerHead(player, luckPermsHook.getPlayerSuffixes(player.getUniqueId()).size());
+            createPlayerHead(player, luckPermsHook.getPlayerSuffixes(player.getUniqueId()).size()).thenAccept(head -> {
                 gui.setItem(43, head);
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
+            });
 
             gui.setItem(40, createClearAllButton());
             gui.setItem(41, createRandomSuffixButton());
@@ -158,33 +155,68 @@ public class GuiManager {
         pane.setItemMeta(meta);
         return pane;
     }
+    public CompletableFuture<ItemStack> createPlayerHead(Player player, int ownedSuffixes) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return plugin.getDatabase()
+                        .getPlayer(player.getUniqueId(), player.getName())
+                        .getCurrentSuffix();
+            } catch (SQLException e) {
+                e.printStackTrace();
+                return null;
+            }
+        }).thenCompose(currentSuffixFromDB -> {
+            System.out.println("Current Suffix: " + currentSuffixFromDB);
 
-    private ItemStack createPlayerHead(Player player, int ownedSuffixes) throws SQLException {
-        // Create the player's head item
-        ItemStack playerHead = new ItemStack(Material.PLAYER_HEAD);
-        SkullMeta meta = (SkullMeta) playerHead.getItemMeta();
+            CompletableFuture<ItemStack> future = new CompletableFuture<>();
 
-        Component currentSuffix = ChatUtil.parseLegacyColors("&b&l | &bCurrent Suffix: &an/a");
-        String currentSuffixFromDB = plugin.getDatabase().getPlayer(player.getUniqueId(), player.getName()).getCurrentSuffix();
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                ItemStack playerHead = new ItemStack(Material.PLAYER_HEAD);
+                SkullMeta meta = (SkullMeta) playerHead.getItemMeta();
 
-        currentSuffixFromDB = plugin.getConfig().getString("suffix.prefix", "suffix_") + currentSuffixFromDB.replace(plugin.getConfig().getString("suffix.prefix", "suffix_"), "");
+                Component currentSuffix = ChatUtil.parseLegacyColors("&b&l | &bCurrent Suffix: &an/a");
 
-        if (currentSuffixFromDB != null && luckPermsHook.getGroupSuffixColor(currentSuffixFromDB) != null) {
-            currentSuffix = ChatUtil.parseLegacyColors("&b&l | &bCurrent Suffix:" + ChatColor.translateAlternateColorCodes('&', luckPermsHook.getGroupSuffixColor(currentSuffixFromDB)));
-        }
+                String finalCurrentSuffix = currentSuffixFromDB;
 
-        // Set player-specific properties
-        meta.setOwningPlayer(player);
-        meta.displayName(ChatUtil.parseLegacyColors(PlaceholderAPI.setPlaceholders(player, plugin.getConfig().getString("player.rankPlaceholder", "%vault_prefix%")).replace(plugin.getConfig().getString("player.rankPlaceholder", "%vault_prefix%"), "&7") + player.getName()));
-        meta.lore(List.of(
-                Component.empty(),
-                currentSuffix,
-                MiniMessage.miniMessage().deserialize("<aqua><bold> | </bold>Owned Suffixes: <bold>" + ownedSuffixes + "</bold>"),
-                Component.empty()
-        ));
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, "playerHead");
-        playerHead.setItemMeta(meta);
-        return playerHead;
+                String prefix = plugin.getConfig().getString("suffix.prefix", "suffix_");
+                finalCurrentSuffix = prefix + finalCurrentSuffix.replace(prefix, "");
+
+                if (luckPermsHook.getGroupSuffixColor(finalCurrentSuffix) != null) {
+                    currentSuffix = ChatUtil.parseLegacyColors("&b&l | &bCurrent Suffix:" +
+                            ChatColor.translateAlternateColorCodes('&',
+                                    luckPermsHook.getGroupSuffixColor(finalCurrentSuffix)));
+                }
+
+                meta.setOwningPlayer(player);
+                meta.displayName(ChatUtil.parseLegacyColors(
+                        PlaceholderAPI.setPlaceholders(player,
+                                        plugin.getConfig().getString("player.rankPlaceholder", "%vault_prefix%"))
+                                .replace(plugin.getConfig().getString("player.rankPlaceholder", "%vault_prefix%"), "&7")
+                                + player.getName()
+                ));
+
+                meta.lore(List.of(
+                        Component.empty(),
+                        currentSuffix,
+                        MiniMessage.miniMessage().deserialize(
+                                "<aqua><bold> | </bold>Owned Suffixes: <bold>" + ownedSuffixes + "</bold>"
+                        ),
+                        Component.empty()
+                ));
+
+                meta.getPersistentDataContainer().set(
+                        new NamespacedKey(plugin, "guiItem"),
+                        PersistentDataType.STRING,
+                        "playerHead"
+                );
+
+                playerHead.setItemMeta(meta);
+
+                future.complete(playerHead);
+            });
+
+            return future;
+        });
     }
 
     public CompletableFuture<ItemStack> createSuffixItemAsync(Player player, String suffix) {

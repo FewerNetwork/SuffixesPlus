@@ -7,9 +7,11 @@ import me.zombieman.dev.suffixesplus.utils.ChatUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
+import org.bukkit.block.data.type.BubbleColumn;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -91,7 +93,7 @@ public class InventoryClickListener implements Listener {
                 } catch (SQLException e) {
                     player.sendMessage(ChatColor.RED + "There was an error while connecting to database. Please try again later.");
                     System.err.println("Error connecting to database: " + e.getMessage());
-                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f ,1.0f);
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                     return;
                 }
             case "previous":
@@ -105,39 +107,37 @@ public class InventoryClickListener implements Listener {
                     return;
                 }
             case "preview_anvil":
-                try {
+                Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                    try {
+                        String currentSuffixFromDB = plugin.getDatabase().getPlayer(player.getUniqueId(), player.getName()).getCurrentSuffix();
 
-                    String currentSuffixFromDB = plugin.getDatabase().getPlayer(player.getUniqueId(), player.getName()).getCurrentSuffix();
+                        if (currentSuffixFromDB == null || currentSuffixFromDB.equalsIgnoreCase("n/a")) {
+                            player.sendMessage(ChatColor.RED + "You need to equip a suffix first!");
+                            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                            return;
+                        }
 
-                    if (currentSuffixFromDB == null || currentSuffixFromDB.equalsIgnoreCase("n/a")) {
-                        player.sendMessage(ChatColor.RED + "You need to equip a suffix first!");
-                        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO ,1.0f, 1.0f);
-                        return;
+                        player.sendMessage(MiniMessage.miniMessage().deserialize("<aqua>Preview:"));
+                        player.sendMessage("");
+
+
+                        currentSuffixFromDB = plugin.getConfig().getString("suffix.prefix", "suffix_") + currentSuffixFromDB.replace(plugin.getConfig().getString("suffix.prefix", "suffix_"), "");
+
+                        String currentSuffix = ChatColor.translateAlternateColorCodes('&', luckPermsHook.getGroupSuffixColor(currentSuffixFromDB));
+
+                        player.sendMessage(ChatUtil.parseLegacyColors(PlaceholderAPI.setPlaceholders(player, plugin.getConfig().getString("player.rankPlaceholder", "%vault_prefix%")).replace(plugin.getConfig().getString("player.rankPlaceholder", "%vault_prefix%"), "&7") + player.getName() + currentSuffix));
+                        player.sendMessage("");
+                        player.sendMessage(ChatUtil.parseLegacyColors(currentSuffix));
+
+                        player.sendMessage("");
+
+                        player.closeInventory();
+                    } catch (SQLException e) {
+                        player.sendMessage(ChatColor.RED + "There was an error while connecting to database. Please try again later.");
+                        e.printStackTrace();
                     }
-
-                    player.sendMessage(MiniMessage.miniMessage().deserialize("<aqua>Preview:"));
-                    player.sendMessage("");
-
-
-                    currentSuffixFromDB = plugin.getConfig().getString("suffix.prefix", "suffix_") + currentSuffixFromDB.replace(plugin.getConfig().getString("suffix.prefix", "suffix_"), "");
-
-                    String currentSuffix = ChatColor.translateAlternateColorCodes('&', luckPermsHook.getGroupSuffixColor(currentSuffixFromDB));
-
-                    player.sendMessage(ChatUtil.parseLegacyColors(PlaceholderAPI.setPlaceholders(player, plugin.getConfig().getString("player.rankPlaceholder", "%vault_prefix%")).replace(plugin.getConfig().getString("player.rankPlaceholder", "%vault_prefix%"), "&7") + player.getName() + currentSuffix));
-                    player.sendMessage("");
-                    player.sendMessage(ChatUtil.parseLegacyColors(currentSuffix));
-
-                    player.sendMessage("");
-
-                    player.closeInventory();
-                    break;
-
-                } catch (SQLException e) {
-                    player.sendMessage(ChatColor.RED + "There was an error while connecting to database. Please try again later.");
-                    System.err.println("Error connecting to database: " + e.getMessage());
-                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
-                    return;
-                }
+                });
+                break;
             default:
                 break;
         }
@@ -147,15 +147,13 @@ public class InventoryClickListener implements Listener {
         luckPermsHook.clearAllSuffixes(player.getUniqueId(), true);
     }
 
-    private void assignRandomSuffix(Player player) throws SQLException{
+    private void assignRandomSuffix(Player player) throws SQLException {
         // Get all suffixes the player owns
         List<String> ownedSuffixes = luckPermsHook.getPlayerSuffixes(player.getUniqueId());
 
-        // Debug: Log owned suffixes
 //        player.sendMessage(ChatUtil.parseLegacyColors("&eDebug: Your owned suffixes: " + ownedSuffixes));
 
         if (ownedSuffixes.isEmpty()) {
-            // If the player doesn't have any suffixes, notify them
             player.sendMessage(ChatUtil.parseLegacyColors("&cYou don't have any suffixes to choose from!"));
             return;
         }
@@ -163,30 +161,42 @@ public class InventoryClickListener implements Listener {
         // Pick a random suffix from the owned suffixes list
         String randomSuffix = ownedSuffixes.get((int) (Math.random() * ownedSuffixes.size()));
 
-        // Debug: Log the random suffix chosen
 //        player.sendMessage(ChatUtil.parseLegacyColors("&eDebug: Chosen random suffix: " + randomSuffix));
 
         randomSuffix = plugin.getConfig().getString("suffix.prefix", "suffix_") + randomSuffix.replace(plugin.getConfig().getString("suffix.prefix", "suffix_"), "");
-        String currentSuffix = plugin.getDatabase().getPlayer(player.getUniqueId(), player.getName()).getCurrentSuffix();
-        if (randomSuffix.equalsIgnoreCase(currentSuffix)) {
-            assignRandomSuffix(player);
-            return;
-        }
 
-        // Clear all other suffixes and set the random one
-        luckPermsHook.clearAllSuffixes(player.getUniqueId(), false);
-        luckPermsHook.addGroup(player.getUniqueId(), plugin.getConfig().getString("suffix.prefix", "suffix_") + randomSuffix.replace(plugin.getConfig().getString("suffix.prefix", "suffix_"), ""));
+        String finalRandomSuffix = randomSuffix;
 
-        plugin.getDatabase().updateSuffixes(player.getUniqueId(), randomSuffix);
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                String currentSuffix = plugin.getDatabase().getPlayer(player.getUniqueId(), player.getName()).getCurrentSuffix();
 
-        // Format the message to display the suffix with its colors
-        String formattedSuffix = plugin.getConfig().getString("suffix.prefix", "suffix_") + randomSuffix.replace(plugin.getConfig().getString("suffix.prefix", "suffix_"), "");
+                if (finalRandomSuffix.equalsIgnoreCase(currentSuffix)) {
+                    assignRandomSuffix(player);
+                    return;
+                }
 
-        // Send the player a message with the random suffix they got
-        player.sendMessage(ChatUtil.parseLegacyColors("&a&m                                                                     "));
-        player.sendMessage(ChatUtil.parseLegacyColors("&aYou have been assigned a random suffix:" + ChatColor.translateAlternateColorCodes('&', luckPermsHook.getGroupSuffixColor(formattedSuffix))));
-        player.sendMessage(ChatUtil.parseLegacyColors("&a&m                                                                     "));
-        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
+                // Clear all other suffixes and set the random one
+                luckPermsHook.clearAllSuffixes(player.getUniqueId(), false);
+                luckPermsHook.addGroup(player.getUniqueId(), plugin.getConfig().getString("suffix.prefix", "suffix_") + finalRandomSuffix.replace(plugin.getConfig().getString("suffix.prefix", "suffix_"), ""));
+
+                plugin.getDatabase().updateSuffixes(player.getUniqueId(), finalRandomSuffix);
+
+                // Format the message to display the suffix with its colors
+                String formattedSuffix = plugin.getConfig().getString("suffix.prefix", "suffix_") + finalRandomSuffix.replace(plugin.getConfig().getString("suffix.prefix", "suffix_"), "");
+
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    // Send the player a message with the random suffix they got
+                    player.sendMessage(ChatUtil.parseLegacyColors("&a&m                                                                     "));
+                    player.sendMessage(ChatUtil.parseLegacyColors("&aYou have been assigned a random suffix:" + ChatColor.translateAlternateColorCodes('&', luckPermsHook.getGroupSuffixColor(formattedSuffix))));
+                    player.sendMessage(ChatUtil.parseLegacyColors("&a&m                                                                     "));
+                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
+                });
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     private void handleSuffixSelection(Player player, ItemMeta itemMeta) {
@@ -240,18 +250,21 @@ public class InventoryClickListener implements Listener {
             player.sendMessage(ChatUtil.parseLegacyColors("&c&m                                               "));
             return;
         }
-        luckPermsHook.clearAllSuffixes(player.getUniqueId(), false);
+        boolean complete = luckPermsHook.clearAllSuffixes(player.getUniqueId(), false);
         luckPermsHook.addGroup(player.getUniqueId(), cleanedSuffix);
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
         player.sendMessage(ChatUtil.parseLegacyColors("&a&m                                               "));
         player.sendMessage(ChatUtil.parseLegacyColors("&a&lSuffix added:"));
         player.sendMessage(ChatUtil.parseLegacyColors(PlaceholderAPI.setPlaceholders(player, plugin.getConfig().getString("player.rankPlaceholder", "%vault_prefix%")).replace(plugin.getConfig().getString("player.rankPlaceholder", "%vault_prefix%"), "&7") + player.getName() + ChatColor.translateAlternateColorCodes('&', luckPermsHook.getGroupSuffixColor(cleanedSuffix))));
         player.sendMessage(ChatUtil.parseLegacyColors("&a&m                                               "));
-        try {
-            plugin.getDatabase().updateSuffixes(player, cleanedSuffix);
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+
+        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
+            try {
+                if (complete) plugin.getDatabase().updateSuffixes(player.getUniqueId(), cleanedSuffix);
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }, 20);
     }
 
     private void handleSuffixPurchase(Player player, String cleanedSuffix) {

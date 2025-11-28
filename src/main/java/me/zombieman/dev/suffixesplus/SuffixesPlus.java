@@ -5,6 +5,7 @@ import me.zombieman.dev.suffixesplus.commands.SuffixCmd;
 import me.zombieman.dev.suffixesplus.commands.SuffixesCmd;
 import me.zombieman.dev.suffixesplus.databases.PlayerDatabase;
 import me.zombieman.dev.suffixesplus.databases.SuffixDatabase;
+import me.zombieman.dev.suffixesplus.managers.DataManager;
 import me.zombieman.dev.suffixesplus.managers.PurchasedManager;
 import me.zombieman.dev.suffixesplus.managers.TempSuffixManager;
 import me.zombieman.dev.suffixesplus.hooks.LuckPermsHook;
@@ -32,6 +33,7 @@ public final class SuffixesPlus extends JavaPlugin {
     private SuffixDatabase suffixDatabase;
     private TempSuffixManager tempSuffixManager;
     private PurchasedManager purchasedManager;
+    private DataManager dataManager;
     public GuiManager guiManager;
     public LuckPermsAPI luckPermsAPI;
     @Override
@@ -84,6 +86,7 @@ public final class SuffixesPlus extends JavaPlugin {
         guiManager = new GuiManager(this, luckPermsHook);
         tempSuffixManager = new TempSuffixManager(this);
         purchasedManager = new PurchasedManager(this);
+        dataManager = new DataManager(this);
 
         new PlayerListener(this);
         new InventoryClickListener(this, luckPermsHook);
@@ -111,6 +114,9 @@ public final class SuffixesPlus extends JavaPlugin {
 
     public PlayerDatabase getDatabase() {
         return database;
+    }
+    public DataManager getDataManager() {
+        return dataManager;
     }
     public SuffixDatabase getSuffixDatabase() {
         return suffixDatabase;

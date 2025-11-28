@@ -44,7 +44,7 @@ public class LuckPermsHook {
         List<String> playerSuffixes = new ArrayList<>();
 
         String configPrefix = plugin.getConfig().getString("suffix.prefix", "suffix_");
-        String playerName = player.getName(); // Needed for DB check
+        String playerName = player.getName();
 
         for (String fullSuffix : allSuffixes) {
             String suffix = fullSuffix.replace(configPrefix, "");
@@ -153,12 +153,12 @@ public class LuckPermsHook {
         return suffixNode.map(SuffixNode::getMetaValue).orElse(null);
     }
 
-    public void clearAllSuffixes(UUID uuid, boolean message) {
+    public boolean clearAllSuffixes(UUID uuid, boolean message) {
         // Fetch the LuckPerms user object for the player
         User user = luckPerms.getUserManager().getUser(uuid);
         if (user == null) {
 //            plugin.getLogger().warning("User not found for UUID: " + uuid);
-            return;
+            return false;
         }
 
         boolean suffixRemoved = false;
@@ -216,11 +216,14 @@ public class LuckPermsHook {
         // Save the changes back to LuckPerms
         luckPerms.getUserManager().saveUser(user);
 
-        try {
-            plugin.getDatabase().updateSuffixes(uuid, "n/a");
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                plugin.getDatabase().updateSuffixes(uuid, "n/a");
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
+        return true;
     }
 
 
@@ -275,11 +278,13 @@ public class LuckPermsHook {
         // Save the changes back to LuckPerms
         luckPerms.getUserManager().saveUser(user);
 
-        try {
-            plugin.getDatabase().updateSuffixes(player.getUniqueId(), "n/a");
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                plugin.getDatabase().updateSuffixes(player.getUniqueId(), "n/a");
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     // Method to check if a player has a group corresponding to the specified suffix
