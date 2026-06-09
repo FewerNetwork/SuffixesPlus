@@ -13,7 +13,7 @@ import java.sql.SQLException;
 
 public class SuffixesCmd implements CommandExecutor {
 
-    private SuffixesPlus plugin;
+    private final SuffixesPlus plugin;
 
     public SuffixesCmd(SuffixesPlus plugin) {
         this.plugin = plugin;
@@ -21,18 +21,16 @@ public class SuffixesCmd implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof Player)) return false;
-
-        Player player = (Player) sender;
+        if (!(sender instanceof Player player)) return false;
 
         if (!player.hasPermission("suffixsplus.command.suffix")) {
-            player.sendMessage(ChatColor.RED + "You don't have permission to run this command!");
+            player.sendMessage(plugin.getMessageManager().get("no-permission"));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return false;
         }
 
         if (plugin.getLuckPermsHook().getAllSuffixes().isEmpty()) {
-            player.sendMessage(ChatColor.RED + "There aren't any suffixes.");
+            player.sendMessage(plugin.getMessageManager().get("suffixes-no-suffixes"));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return false;
         }
@@ -41,27 +39,30 @@ public class SuffixesCmd implements CommandExecutor {
             String configSuffix = plugin.getConfig().getString("suffix.prefix", "suffix_");
 
             if (!plugin.getSuffixDatabase().getAllSuffixes().isEmpty()) {
-                player.sendMessage(ChatColor.AQUA.toString() + ChatColor.STRIKETHROUGH + " " + ChatColor.AQUA + " Non Purchasable Suffixes " + ChatColor.AQUA.toString() + ChatColor.STRIKETHROUGH + " ");
+                player.sendMessage(plugin.getMessageManager().get("suffixes-header-nonpurchasable"));
 
                 for (String s : plugin.getSuffixDatabase().getAllSuffixes()) {
-                    player.sendMessage(ChatUtil.parseLegacyColors("&7Suffix: " + ChatColor.translateAlternateColorCodes('&', plugin.getLuckPermsHook().getGroupSuffixColor(configSuffix + s.replace(configSuffix, "")))));
+                    String color = ChatColor.translateAlternateColorCodes('&',
+                            plugin.getLuckPermsHook().getGroupSuffixColor(configSuffix + s.replace(configSuffix, "")));
+                    player.sendMessage(plugin.getMessageManager().get("suffixes-entry", "%suffix%", color));
                 }
-
             }
 
-            player.sendMessage(ChatColor.AQUA.toString() + ChatColor.STRIKETHROUGH + "   " + ChatColor.AQUA + " Purchasable Suffixes " + ChatColor.AQUA.toString() + ChatColor.STRIKETHROUGH + "   ");
+            player.sendMessage(plugin.getMessageManager().get("suffixes-header-purchasable"));
 
             for (String s : plugin.getLuckPermsHook().getAllSuffixes()) {
                 s = configSuffix + s.replace(configSuffix, "");
                 if (!plugin.getSuffixDatabase().getAllSuffixes().contains(s.replace(configSuffix, ""))) {
-                    player.sendMessage(ChatUtil.parseLegacyColors("&7Suffix: " + ChatColor.translateAlternateColorCodes('&', plugin.getLuckPermsHook().getGroupSuffixColor(s))));
+                    String color = ChatColor.translateAlternateColorCodes('&',
+                            plugin.getLuckPermsHook().getGroupSuffixColor(s));
+                    player.sendMessage(plugin.getMessageManager().get("suffixes-entry", "%suffix%", color));
                 }
             }
 
-            player.sendMessage(ChatColor.AQUA.toString() + ChatColor.STRIKETHROUGH + "                                    ");
+            player.sendMessage(plugin.getMessageManager().get("suffixes-footer"));
 
         } catch (SQLException e) {
-            player.sendMessage(ChatColor.RED + "There was an error trying to connect to the database, please try again later.");
+            player.sendMessage(plugin.getMessageManager().get("db-error"));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             throw new RuntimeException(e);
         }

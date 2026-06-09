@@ -6,6 +6,7 @@ import me.zombieman.dev.suffixesplus.commands.SuffixesCmd;
 import me.zombieman.dev.suffixesplus.databases.PlayerDatabase;
 import me.zombieman.dev.suffixesplus.databases.SuffixDatabase;
 import me.zombieman.dev.suffixesplus.managers.DataManager;
+import me.zombieman.dev.suffixesplus.managers.MessageManager;
 import me.zombieman.dev.suffixesplus.managers.PurchasedManager;
 import me.zombieman.dev.suffixesplus.managers.TempSuffixManager;
 import me.zombieman.dev.suffixesplus.hooks.LuckPermsHook;
@@ -15,11 +16,9 @@ import me.zombieman.dev.suffixesplus.managers.GuiManager;
 import me.zombieman.dev.suffixesplus.api.LuckPermsAPI;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -34,18 +33,22 @@ public final class SuffixesPlus extends JavaPlugin {
     private TempSuffixManager tempSuffixManager;
     private PurchasedManager purchasedManager;
     private DataManager dataManager;
+    private MessageManager messageManager;
     public GuiManager guiManager;
     public LuckPermsAPI luckPermsAPI;
+
     @Override
     public void onEnable() {
-        // Plugin startup logic
         saveDefaultConfig();
+
+        // MessageManager must be created first so everything else can use it
+        messageManager = new MessageManager(this);
 
         if (Bukkit.getPluginManager().getPlugin("LuckPerms") == null) {
             getLogger().warning("-----------------------------------------");
             getLogger().warning("WARNING");
-            getLogger().warning("LuckPerms plugin is not installed!");
-            getLogger().warning(this.getPluginMeta().getName() + " is now being disabled!");
+            getLogger().warning(messageManager.getRaw("warn-luckperms-missing"));
+            getLogger().warning(messageManager.getRaw("warn-plugin-disabling", "%plugin%", this.getPluginMeta().getName()));
             getLogger().warning("-----------------------------------------");
             Bukkit.getPluginManager().disablePlugin(this);
             return;
@@ -54,8 +57,8 @@ public final class SuffixesPlus extends JavaPlugin {
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") == null) {
             getLogger().warning("-----------------------------------------");
             getLogger().warning("WARNING");
-            getLogger().warning("PlaceholderAPI plugin is not installed!");
-            getLogger().warning(this.getPluginMeta().getName() + " is now being disabled!");
+            getLogger().warning(messageManager.getRaw("warn-placeholderapi-missing"));
+            getLogger().warning(messageManager.getRaw("warn-plugin-disabling", "%plugin%", this.getPluginMeta().getName()));
             getLogger().warning("-----------------------------------------");
             Bukkit.getPluginManager().disablePlugin(this);
             return;
@@ -72,10 +75,10 @@ public final class SuffixesPlus extends JavaPlugin {
             suffixDatabase = new SuffixDatabase(url, username, password);
         } catch (SQLException e) {
             e.printStackTrace();
-            getLogger().severe("Failed to connect to database! " + e.getMessage());
+            getLogger().severe(messageManager.getRaw("warn-db-failed", "%error%", e.getMessage()));
             getLogger().severe("-----------------------------------------");
-            getLogger().severe("ERROR: Failed to connect to database");
-            getLogger().severe(this.getPluginMeta().getName() + " is now being disabled!");
+            getLogger().severe(messageManager.getRaw("warn-db-error"));
+            getLogger().severe(messageManager.getRaw("warn-plugin-disabling", "%plugin%", this.getPluginMeta().getName()));
             getLogger().severe("-----------------------------------------");
             Bukkit.getPluginManager().disablePlugin(this);
         }
@@ -103,70 +106,52 @@ public final class SuffixesPlus extends JavaPlugin {
         if (getDatabase() != null) {
             getDatabase().close();
         }
-
         getSuffixDatabase().close();
     }
 
-
-    public LuckPermsHook getLuckPermsHook() {
-        return luckPermsHook;
-    }
-
-    public PlayerDatabase getDatabase() {
-        return database;
-    }
-    public DataManager getDataManager() {
-        return dataManager;
-    }
-    public SuffixDatabase getSuffixDatabase() {
-        return suffixDatabase;
-    }
-    public PurchasedManager getPurchasedManager() {
-        return purchasedManager;
-    }
-
     public void checkIfPlayerHasSuffix() {
-
         Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
             try {
                 int onlinePlayers = Bukkit.getOnlinePlayers().size();
-
                 if (onlinePlayers == 0) return;
 
                 for (Player player : Bukkit.getOnlinePlayers()) {
 
                     String currentSuffix = getDatabase().getPlayer(player.getUniqueId(), player.getName()).getCurrentSuffix();
-
                     if (!currentSuffix.equalsIgnoreCase("n/a")) continue;
 
                     int ownedSuffixes = getLuckPermsHook().getPlayerSuffixes(player.getUniqueId()).size();
-
-//                    for (String suffix : getLuckPermsHook().getAllSuffixes()) {
-//                        suffix = suffix.replace(getConfig().getString("suffix.prefix", "suffix_"), "");
-//                        boolean hasPermission = player.hasPermission("suffixsplus.suffix." + suffix);
-//
-//                        if (hasPermission) ownedSuffixes++;
-//                    }
-
                     if (ownedSuffixes == 0) continue;
 
-                    if (!getDatabase().getPlayer(player.getUniqueId(), player.getName()).getNotifications() && getConfig().getBoolean("suffix.notification", true)) continue;
+                    if (!getDatabase().getPlayer(player.getUniqueId(), player.getName()).getNotifications()
+                            && getConfig().getBoolean("suffix.notification", true)) continue;
 
-                    player.sendMessage(MiniMessage.miniMessage().deserialize("""
-                                <green><strikethrough>                                             </strikethrough>
-                                <green>🌟 Remember to use your suffixes! 🌟
-                                <green>You can choose from %ownedSuffixes% suffixes.
-                                <green>/suffix (CLICK ME)
-                                <green><strikethrough>                                             </strikethrough>"""
-                                    .replace("%ownedSuffixes%", String.valueOf(ownedSuffixes)))
-                            .hoverEvent(HoverEvent.showText(MiniMessage.miniMessage().deserialize("<green>Click to view suffixes")))
-                            .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.RUN_COMMAND, "/suffix")));
+                    String countStr = String.valueOf(ownedSuffixes);
+
+                    player.sendMessage(
+                            messageManager.get("reminder-line-1")
+                    );
+                    player.sendMessage(
+                            messageManager.get("reminder-title")
+                    );
+                    player.sendMessage(
+                            messageManager.get("reminder-body", "%ownedSuffixes%", countStr)
+                    );
+                    player.sendMessage(
+                            messageManager.get("reminder-command")
+                                    .hoverEvent(HoverEvent.showText(messageManager.get("reminder-hover")))
+                                    .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.RUN_COMMAND, "/suffix"))
+                    );
+                    player.sendMessage(
+                            messageManager.get("reminder-line-end")
+                    );
 
                     if (getConfig().getBoolean("suffix.notification", true)) {
-                        player.sendMessage(MiniMessage.miniMessage().deserialize("""
-                                        <gray>/suffix notification (to turn off notifications)""")
-                                .hoverEvent(HoverEvent.showText(MiniMessage.miniMessage().deserialize("<green>Click to turn of suffix notifications")))
-                                .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.RUN_COMMAND, "/suffix notification")));
+                        player.sendMessage(
+                                messageManager.get("reminder-notification-tip")
+                                        .hoverEvent(HoverEvent.showText(messageManager.get("reminder-notification-tip-hover")))
+                                        .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.RUN_COMMAND, "/suffix notification"))
+                        );
                     }
 
                     player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
@@ -179,4 +164,10 @@ public final class SuffixesPlus extends JavaPlugin {
     }
 
 
+    public MessageManager getMessageManager() { return messageManager; }
+    public LuckPermsHook getLuckPermsHook() { return luckPermsHook; }
+    public PlayerDatabase getDatabase() { return database; }
+    public DataManager getDataManager() { return dataManager; }
+    public SuffixDatabase getSuffixDatabase() { return suffixDatabase; }
+    public PurchasedManager getPurchasedManager() { return purchasedManager; }
 }

@@ -1,0 +1,122 @@
+# -------------------------------------------------------
+# SuffixesPlus - English Language File
+# -------------------------------------------------------
+
+# General
+no-permission: "<red>You don't have permission to run this command!"
+player-only: "<red>This command can only be run by a player!"
+db-error: "<red>There was an error connecting to the database, please try again later."
+player-not-found: "<red>Player not found!"
+invalid-arguments: "<red>Invalid arguments!"
+
+# Startup / plugin warnings (console only)
+warn-luckperms-missing: "LuckPerms plugin is not installed!"
+warn-placeholderapi-missing: "PlaceholderAPI plugin is not installed!"
+warn-plugin-disabling: "%plugin% is now being disabled!"
+warn-db-failed: "Failed to connect to database! %error%"
+warn-db-error: "ERROR: Failed to connect to database"
+
+# /suffixes (SuffixesCmd)
+suffixes-no-suffixes: "<red>There aren't any suffixes."
+suffixes-header-nonpurchasable: "<aqua><strikethrough>   </strikethrough><aqua> Non Purchasable Suffixes <aqua><strikethrough>   </strikethrough>"
+suffixes-header-purchasable: "<aqua><strikethrough>   </strikethrough><aqua> Purchasable Suffixes <aqua><strikethrough>   </strikethrough>"
+suffixes-footer: "<aqua><strikethrough>                                    </strikethrough>"
+suffixes-entry: "<gray>Suffix: %suffix%"
+
+# /suffixadmin (SuffixAdminCmd)
+suffixadmin-usage: "<yellow>Usage: /suffixadmin set <player> <all, purchasable, reset>"
+suffixadmin-unknown-player: "<red>Unknown player %player%."
+suffixadmin-db-error: "<red>There was an error while accessing the database."
+
+# PurchasedManager
+purchased-invalid-arguments: "<red>Invalid arguments!"
+purchased-reset-success: "<green>Successfully reset %player%'s suffix access!"
+purchased-give-success: "<green>Successfully given %player% all%type%suffixes!"
+
+# Reminder notification (SuffixesPlus)
+reminder-line-1: "<green><strikethrough>                                             </strikethrough>"
+reminder-title: "<green>🌟 Remember to use your suffixes! 🌟"
+reminder-body: "<green>You can choose from %ownedSuffixes% suffixes."
+reminder-command: "<green>/suffix (CLICK ME)"
+reminder-line-end: "<green><strikethrough>                                             </strikethrough>"
+reminder-hover: "<green>Click to view suffixes"
+reminder-notification-tip: "<gray>/suffix notification (to turn off notifications)"
+reminder-notification-tip-hover: "<green>Click to turn off suffix notifications"
+
+# SuffixCmd - notifications
+suffix-notification-on: "<#00FF00>Notifications turned <#00FF00><bold>ON</bold><#00FF00>!"
+suffix-notification-off: "<#FF0000>Notifications turned <#FF0000><bold>OFF</bold><#FF0000>!"
+
+# SuffixCmd - admin subcommands
+suffix-add-usage: "<yellow>Usage: /suffix add <suffix>"
+suffix-add-invalid: "<red>The %suffix% isn't a valid suffix."
+suffix-add-already-exists: "<red>This suffix is already a non purchasable suffix!"
+suffix-add-success: "<green>Successfully added %suffix% to the list of non purchasable suffixes."
+suffix-remove-usage: "<yellow>Usage: /suffix remove <suffix>"
+suffix-remove-invalid: "<red>The %suffix% isn't a valid suffix."
+suffix-remove-not-in-list: "<red>This suffix is not in the list of non purchasable suffixes!"
+suffix-remove-success: "<green>Successfully removed %suffix% from the list of non purchasable suffixes."
+suffix-clear-success: "<green>Successfully cleared the list of non purchasable suffixes."
+suffix-info-no-suffixes: "<red>There aren't any suffixes in this list!"
+suffix-info-footer: "<aqua><strikethrough>                                    </strikethrough>"
+suffix-unknown-subcommand: "<red>Unknown subcommand. Usage: /suffix <add|remove|clear|info|help|notification>"
+
+# SuffixCmd - help
+suffix-help-divider: "<green><strikethrough>                                         </strikethrough>"
+suffix-help-creating-title: "<green>Creating the suffix:"
+suffix-help-step1: "<yellow>1. /lp creategroup suffix_%suffix%"
+suffix-help-step2: "<yellow>2. /lp editor"
+suffix-help-step3: "<yellow>3. Add `suffix.0.<suffix>` to the suffix group."
+suffix-help-nonpurchasable-title: "<green>Making the suffix non purchasable:"
+suffix-help-nonpurchasable-step1: "<yellow>1. /suffix add <bold>%suffix%</bold>"
+suffix-help-checking-title: "<green>Checking for the suffixes:"
+suffix-help-checking-step1: "<yellow>1. /suffixes"
+suffix-help-permission-title: "<green>Adding the permission:"
+suffix-help-permission-step1: "<yellow>1. /lp user <player> permission"
+suffix-help-permission-step2: "<yellow>   set suffixsplus.suffix.%suffix%"
+suffix-help-click-here: "<green>Click here"
+suffix-support-hover: "<#7289da>Click Here To Get Support!"
+suffix-support-label: "<#7289da><bold>Click Here To Get Support!</bold>"
+suffix-support-divider: "<#7289da><strikethrough>                                         </strikethrough>"
+
+# GuiManager
+gui-title: "Choose Your Suffix (Page %page%/%maxPage%)"
+gui-no-suffixes: "<red>There aren't any suffixes in this list!"
+gui-nav-next: "<gold><bold>Next"
+gui-nav-previous: "<gold><bold>Previous"
+gui-clear-all: "<red><bold>Clear All Suffixes"
+gui-random-suffix: "<green><bold>Random Suffix"
+gui-info-button: "<blue><bold>Info"
+gui-preview-click: "<aqua><bold> | </bold>Click to preview your suffix!"
+gui-preview-current-suffix-default: "&b&l | &bCurrent Suffix: &an/a"
+gui-preview-current-suffix: "&b&l | &bCurrent Suffix:%suffix%"
+gui-head-owned-suffixes: "<aqua><bold> | </bold>Owned Suffixes: <bold>%count%</bold>"
+gui-suffix-lore-suffix: "<aqua><bold> | </bold>Suffix: "
+gui-suffix-lore-preview: "<aqua><bold> | </bold>Preview: "
+gui-suffix-lore-active: "<aqua><bold> | </bold>Active: <bold>%value%"
+gui-suffix-lore-purchasable: "<aqua><bold> | </bold>Purchasable: <bold>%value%"
+gui-suffix-name-owned: "<green><bold>%suffix% Suffix"
+gui-suffix-name-unowned: "<red>%suffix% Suffix"
+
+# InventoryClickListener
+click-db-error: "<red>There was an error connecting to the database, please try again later."
+click-info: "<gold>Suffix Info: <white>Select a suffix to customize your player tag."
+click-preview-no-suffix: "<red>You need to equip a suffix first!"
+click-preview-header: "<aqua>Preview:"
+click-no-valid-suffix: "<red>This isn't a valid suffix!"
+click-not-purchasable: "<red>The %suffix% suffix is not purchasable!"
+click-purchase-check-error: "<red>There was an error checking if the suffix is purchasable."
+click-no-suffixes-random: "<red>You don't have any suffixes to choose from!"
+click-random-assigned: "&aYou have been assigned a random suffix:%suffix%"
+click-random-divider: "&a&m                                                                     "
+click-suffix-removed: "&cSuffix removed:%suffix%"
+click-suffix-removed-divider: "&c&m                                               "
+click-suffix-added: "&a&lSuffix added:"
+click-suffix-added-divider: "&a&m                                               "
+
+# LuckPermsHook
+lp-clear-no-suffixes: "&cNo suffixes or groups were found to clear."
+lp-clear-no-suffixes-divider: "&c&m                                                                     "
+lp-clear-success: "&aAll suffixes and related groups have been cleared."
+lp-clear-success-divider: "&a&m                                                                     "
+lp-remove-nothing-removed: "&cNo suffix or group was removed."

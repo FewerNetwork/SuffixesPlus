@@ -1,7 +1,6 @@
 package me.zombieman.dev.suffixesplus.commands;
 
 import me.zombieman.dev.suffixesplus.SuffixesPlus;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Sound;
@@ -29,12 +28,12 @@ public class SuffixAdminCmd implements CommandExecutor, TabCompleter {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
 
         if (!sender.hasPermission("suffixsplus.command.suffixadmin")) {
-            sender.sendMessage(ChatColor.RED + "You don't have permission to run this command!");
+            sender.sendMessage(plugin.getMessageManager().get("no-permission"));
             return false;
         }
 
         if (args.length < 3 || !args[0].equalsIgnoreCase("set")) {
-            sender.sendMessage(ChatColor.YELLOW + "Usage: /suffixadmin set <player> <all, purchasable, reset>");
+            sender.sendMessage(plugin.getMessageManager().get("suffixadmin-usage"));
             return false;
         }
 
@@ -42,7 +41,7 @@ public class SuffixAdminCmd implements CommandExecutor, TabCompleter {
         String type = args[2].toLowerCase();
 
         if (!type.equals("all") && !type.equals("purchasable") && !type.equals("reset")) {
-            sender.sendMessage(ChatColor.YELLOW + "Usage: /suffixadmin set <player> <all, purchasable, reset>");
+            sender.sendMessage(plugin.getMessageManager().get("suffixadmin-usage"));
             return false;
         }
 
@@ -51,13 +50,13 @@ public class SuffixAdminCmd implements CommandExecutor, TabCompleter {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 if (plugin.getDatabase().getUuidByUsername(playerName) == null && Bukkit.getPlayer(playerName) == null) {
-                    sender.sendMessage(ChatColor.RED + "Unknown player " + playerName);
+                    sender.sendMessage(plugin.getMessageManager().get("suffixadmin-unknown-player", "%player%", playerName));
                     playerExists.set(false);
                 } else {
                     plugin.getPurchasedManager().givePurchasedRole(sender, playerName, type);
                 }
             } catch (SQLException e) {
-                sender.sendMessage(ChatColor.RED + "There was an error while accessing the database.");
+                sender.sendMessage(plugin.getMessageManager().get("suffixadmin-db-error"));
                 e.printStackTrace();
             }
         });
@@ -65,29 +64,23 @@ public class SuffixAdminCmd implements CommandExecutor, TabCompleter {
         return true;
     }
 
-
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> completions = new ArrayList<>();
 
-        Player player = (Player) sender;
-
+        if (!(sender instanceof Player player)) return null;
         if (!player.hasPermission("suffixsplus.command.suffixadmin")) return null;
 
         if (args.length == 1) {
             completions.add("set");
-        } else if (args.length == 2) {
-            if (args[0].equalsIgnoreCase("set")) {
-                for (Player target : Bukkit.getOnlinePlayers()) {
-                    completions.add(target.getName());
-                }
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("set")) {
+            for (Player target : Bukkit.getOnlinePlayers()) {
+                completions.add(target.getName());
             }
-        } else if (args.length == 3) {
-            if (args[0].equalsIgnoreCase("set")) {
-                completions.add("all");
-                completions.add("purchasable");
-                completions.add("reset");
-            }
+        } else if (args.length == 3 && args[0].equalsIgnoreCase("set")) {
+            completions.add("all");
+            completions.add("purchasable");
+            completions.add("reset");
         }
 
         String lastArg = args[args.length - 1];

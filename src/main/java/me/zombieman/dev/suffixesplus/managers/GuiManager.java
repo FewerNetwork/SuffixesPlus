@@ -30,13 +30,14 @@ public class GuiManager {
     }
 
     private final Map<UUID, Integer> playerPages = new HashMap<>();
+
     public void openSuffixGui(Player player, int page) throws SQLException {
 
         List<String> allSuffixes = luckPermsHook.getAllSuffixes();
         allSuffixes.removeIf(suffix -> suffix == null || suffix.isEmpty());
 
         if (allSuffixes.isEmpty()) {
-            player.sendMessage(ChatColor.RED + "There aren't any suffixes in this list!");
+            player.sendMessage(plugin.getMessageManager().get("gui-no-suffixes"));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return;
         }
@@ -44,7 +45,10 @@ public class GuiManager {
         int suffixesPerPage = 36;
         int maxPage = (int) Math.ceil((double) allSuffixes.size() / suffixesPerPage);
 
-        Inventory gui = Bukkit.createInventory(null, 5 * 9, Component.text("Choose Your Suffix (Page " + (page + 1) + "/" + maxPage + ")"));
+        String title = plugin.getMessageManager().getRaw("gui-title",
+                "%page%", String.valueOf(page + 1),
+                "%maxPage%", String.valueOf(maxPage));
+        Inventory gui = Bukkit.createInventory(null, 5 * 9, MiniMessage.miniMessage().deserialize(title));
 
         // Fill row 5 with black panes
         ItemStack blackPane = createPane();
@@ -52,26 +56,17 @@ public class GuiManager {
             gui.setItem(i, blackPane);
         }
 
-        // Async fetch all suffix items
         List<CompletableFuture<ItemStack>> futures = new ArrayList<>();
         for (String suffix : allSuffixes) {
             CompletableFuture<ItemStack> suffixItemAsync = createSuffixItemAsync(player, suffix);
+            if (suffixItemAsync == null) continue;
 
-            if (suffixItemAsync == null) {
-                continue;
-            }
-
-            CompletableFuture<ItemStack> handledFuture = suffixItemAsync.thenApply(item -> {
-                if (item == null) {
-                    System.out.println("[SuffixGUI] Suffix is null, skipping: " + suffix);
-                }
+            futures.add(suffixItemAsync.thenApply(item -> {
+                if (item == null) System.out.println("[SuffixGUI] Suffix is null, skipping: " + suffix);
                 return item;
-            });
-
-            futures.add(handledFuture);
+            }));
         }
 
-        // When all items are ready, place them in GUI
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).thenRun(() -> {
 
             List<ItemStack> owned = new ArrayList<>();
@@ -80,17 +75,13 @@ public class GuiManager {
             for (CompletableFuture<ItemStack> future : futures) {
                 try {
                     if (future.get() == null) continue;
-
                     ItemStack item = future.get();
-
                     ItemMeta meta = item.getItemMeta();
                     boolean owns = meta != null && Boolean.TRUE.equals(
-                            meta.getPersistentDataContainer().get(new NamespacedKey(plugin, "ownsSuffix"), PersistentDataType.BOOLEAN)
-                    );
-
+                            meta.getPersistentDataContainer().get(
+                                    new NamespacedKey(plugin, "ownsSuffix"), PersistentDataType.BOOLEAN));
                     if (owns) owned.add(item);
                     else notOwned.add(item);
-
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -107,16 +98,17 @@ public class GuiManager {
                 gui.setItem(slot, allItems.get(i));
             }
 
-            createPlayerHead(player, luckPermsHook.getPlayerSuffixes(player.getUniqueId()).size()).thenAccept(head -> {
-                gui.setItem(43, head);
-            });
+            createPlayerHead(player, luckPermsHook.getPlayerSuffixes(player.getUniqueId()).size())
+                    .thenAccept(head -> gui.setItem(43, head));
 
             gui.setItem(40, createClearAllButton());
             gui.setItem(41, createRandomSuffixButton());
             gui.setItem(39, createInfoButton());
 
-            if (page < maxPage - 1) gui.setItem(44, createNavigationButton("Next", Material.ARROW));
-            if (page > 0) gui.setItem(36, createNavigationButton("Previous", Material.ARROW));
+            if (page < maxPage - 1)
+                gui.setItem(44, createNavigationButton(plugin.getMessageManager().getRaw("gui-nav-next"), "next", Material.ARROW));
+            if (page > 0)
+                gui.setItem(36, createNavigationButton(plugin.getMessageManager().getRaw("gui-nav-previous"), "previous", Material.ARROW));
 
             try {
                 if (player.hasPermission("suffixsplus.gui.preview")) {
@@ -131,18 +123,19 @@ public class GuiManager {
                 setCurrentPage(player, page);
                 player.openInventory(gui);
             });
+
         }).exceptionally(ex -> {
             ex.printStackTrace();
             return null;
         });
     }
 
-    // Helper method to create navigation buttons
-    private ItemStack createNavigationButton(String label, Material material) {
+    private ItemStack createNavigationButton(String label, String dataValue, Material material) {
         ItemStack button = new ItemStack(material);
         ItemMeta meta = button.getItemMeta();
-        meta.displayName(MiniMessage.miniMessage().deserialize("<gold><bold>" + label));
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, label.toLowerCase());
+        meta.displayName(MiniMessage.miniMessage().deserialize(label));
+        meta.getPersistentDataContainer().set(
+                new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, dataValue);
         button.setItemMeta(meta);
         return button;
     }
@@ -151,10 +144,12 @@ public class GuiManager {
         ItemStack pane = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
         ItemMeta meta = pane.getItemMeta();
         meta.displayName(Component.empty());
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, "true");
+        meta.getPersistentDataContainer().set(
+                new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, "true");
         pane.setItemMeta(meta);
         return pane;
     }
+
     public CompletableFuture<ItemStack> createPlayerHead(Player player, int ownedSuffixes) {
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -166,7 +161,6 @@ public class GuiManager {
                 return null;
             }
         }).thenCompose(currentSuffixFromDB -> {
-            System.out.println("Current Suffix: " + currentSuffixFromDB);
 
             CompletableFuture<ItemStack> future = new CompletableFuture<>();
 
@@ -174,17 +168,18 @@ public class GuiManager {
                 ItemStack playerHead = new ItemStack(Material.PLAYER_HEAD);
                 SkullMeta meta = (SkullMeta) playerHead.getItemMeta();
 
-                Component currentSuffix = ChatUtil.parseLegacyColors("&b&l | &bCurrent Suffix: &an/a");
+                Component currentSuffix = ChatUtil.parseLegacyColors(
+                        plugin.getMessageManager().getRaw("gui-preview-current-suffix-default"));
 
                 String finalCurrentSuffix = currentSuffixFromDB;
-
                 String prefix = plugin.getConfig().getString("suffix.prefix", "suffix_");
                 finalCurrentSuffix = prefix + finalCurrentSuffix.replace(prefix, "");
 
                 if (luckPermsHook.getGroupSuffixColor(finalCurrentSuffix) != null) {
-                    currentSuffix = ChatUtil.parseLegacyColors("&b&l | &bCurrent Suffix:" +
-                            ChatColor.translateAlternateColorCodes('&',
-                                    luckPermsHook.getGroupSuffixColor(finalCurrentSuffix)));
+                    String color = ChatColor.translateAlternateColorCodes('&',
+                            luckPermsHook.getGroupSuffixColor(finalCurrentSuffix));
+                    currentSuffix = ChatUtil.parseLegacyColors(
+                            plugin.getMessageManager().getRaw("gui-preview-current-suffix", "%suffix%", color));
                 }
 
                 meta.setOwningPlayer(player);
@@ -199,19 +194,14 @@ public class GuiManager {
                         Component.empty(),
                         currentSuffix,
                         MiniMessage.miniMessage().deserialize(
-                                "<aqua><bold> | </bold>Owned Suffixes: <bold>" + ownedSuffixes + "</bold>"
-                        ),
+                                plugin.getMessageManager().getRaw("gui-head-owned-suffixes",
+                                        "%count%", String.valueOf(ownedSuffixes))),
                         Component.empty()
                 ));
 
                 meta.getPersistentDataContainer().set(
-                        new NamespacedKey(plugin, "guiItem"),
-                        PersistentDataType.STRING,
-                        "playerHead"
-                );
-
+                        new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, "playerHead");
                 playerHead.setItemMeta(meta);
-
                 future.complete(playerHead);
             });
 
@@ -227,20 +217,19 @@ public class GuiManager {
                 .checkAccessAsync(player.getUniqueId(), player.getName(), configSuffix, formattedSuffix)
                 .thenApply(hasAccess -> {
                     String permissionNode = "suffixsplus.suffix." + formattedSuffix.toLowerCase().replaceAll("[^a-zA-Z0-9]", "");
-                    if (!hasAccess && player.hasPermission(permissionNode)) {
-                        hasAccess = true;
-                    }
-
+                    if (!hasAccess && player.hasPermission(permissionNode)) hasAccess = true;
                     if (player.hasPermission("suffixsplus.access.all")) hasAccess = true;
 
                     try {
-                        if (!plugin.getSuffixDatabase().getAllSuffixes().contains(formattedSuffix) && player.hasPermission("suffixsplus.access.purchasable"))
+                        if (!plugin.getSuffixDatabase().getAllSuffixes().contains(formattedSuffix)
+                                && player.hasPermission("suffixsplus.access.purchasable"))
                             hasAccess = true;
                     } catch (SQLException e) {
-                        player.sendMessage(ChatColor.RED + "There was an error while connecting to the database, please contact the server administrator or try again later.");
+                        player.sendMessage(plugin.getMessageManager().get("db-error"));
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                         e.printStackTrace();
                     }
+
                     boolean result = false;
                     for (String list : plugin.getConfig().getStringList("suffix.hide")) {
                         if (!hasAccess && luckPermsHook.groupHasPermission(suffix, "suffixsplus.type." + list)) {
@@ -251,40 +240,47 @@ public class GuiManager {
                     if (result) return null;
 
                     ItemStack item = createSuffixItem(suffix, hasAccess, player);
-
                     ItemMeta meta = item.getItemMeta();
                     if (meta != null) {
-                        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "ownsSuffix"), PersistentDataType.BOOLEAN, hasAccess);
+                        meta.getPersistentDataContainer().set(
+                                new NamespacedKey(plugin, "ownsSuffix"), PersistentDataType.BOOLEAN, hasAccess);
                         item.setItemMeta(meta);
                     }
-
                     return item;
                 });
     }
 
-
     private ItemStack createPreview(Player player) throws SQLException {
-        // Create the player's head item
         ItemStack anvil = new ItemStack(Material.ANVIL);
         ItemMeta meta = anvil.getItemMeta();
 
-        Component currentSuffix = ChatUtil.parseLegacyColors("&b&l | &bCurrent Suffix: &an/a");
+        Component currentSuffix = ChatUtil.parseLegacyColors(
+                plugin.getMessageManager().getRaw("gui-preview-current-suffix-default"));
         String currentSuffixFromDB = plugin.getDatabase().getPlayer(player.getUniqueId(), player.getName()).getCurrentSuffix();
+        currentSuffixFromDB = plugin.getConfig().getString("suffix.prefix", "suffix_")
+                + currentSuffixFromDB.replace(plugin.getConfig().getString("suffix.prefix", "suffix_"), "");
 
-        currentSuffixFromDB = plugin.getConfig().getString("suffix.prefix", "suffix_") + currentSuffixFromDB.replace(plugin.getConfig().getString("suffix.prefix", "suffix_"), "");
-
-        if (currentSuffixFromDB != null && luckPermsHook.getGroupSuffixColor(currentSuffixFromDB) != null) {
-            currentSuffix = ChatUtil.parseLegacyColors("&b&l | &bCurrent Suffix:" + ChatColor.translateAlternateColorCodes('&', luckPermsHook.getGroupSuffixColor(currentSuffixFromDB)));
+        if (luckPermsHook.getGroupSuffixColor(currentSuffixFromDB) != null) {
+            String color = ChatColor.translateAlternateColorCodes('&',
+                    luckPermsHook.getGroupSuffixColor(currentSuffixFromDB));
+            currentSuffix = ChatUtil.parseLegacyColors(
+                    plugin.getMessageManager().getRaw("gui-preview-current-suffix", "%suffix%", color));
         }
 
-        meta.displayName(ChatUtil.parseLegacyColors(PlaceholderAPI.setPlaceholders(player, plugin.getConfig().getString("player.rankPlaceholder", "%vault_prefix%")).replace(plugin.getConfig().getString("player.rankPlaceholder", "%vault_prefix%"), "&7") + player.getName()));
+        meta.displayName(ChatUtil.parseLegacyColors(
+                PlaceholderAPI.setPlaceholders(player, plugin.getConfig().getString("player.rankPlaceholder", "%vault_prefix%"))
+                        .replace(plugin.getConfig().getString("player.rankPlaceholder", "%vault_prefix%"), "&7")
+                        + player.getName()));
+
         meta.lore(List.of(
                 Component.empty(),
-                MiniMessage.miniMessage().deserialize("<aqua><bold> | </bold>Click to preview your suffix!"),
+                MiniMessage.miniMessage().deserialize(plugin.getMessageManager().getRaw("gui-preview-click")),
                 currentSuffix,
                 Component.empty()
         ));
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, "preview_anvil");
+
+        meta.getPersistentDataContainer().set(
+                new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, "preview_anvil");
         anvil.setItemMeta(meta);
         return anvil;
     }
@@ -292,8 +288,9 @@ public class GuiManager {
     private ItemStack createClearAllButton() {
         ItemStack clearItem = new ItemStack(Material.BARRIER);
         ItemMeta meta = clearItem.getItemMeta();
-        meta.displayName(MiniMessage.miniMessage().deserialize("<red><bold>Clear All Suffixes"));
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, "clearAll");
+        meta.displayName(MiniMessage.miniMessage().deserialize(plugin.getMessageManager().getRaw("gui-clear-all")));
+        meta.getPersistentDataContainer().set(
+                new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, "clearAll");
         clearItem.setItemMeta(meta);
         return clearItem;
     }
@@ -301,8 +298,9 @@ public class GuiManager {
     private ItemStack createRandomSuffixButton() {
         ItemStack randomItem = new ItemStack(Material.DIAMOND);
         ItemMeta meta = randomItem.getItemMeta();
-        meta.displayName(MiniMessage.miniMessage().deserialize("<green><bold>Random Suffix"));
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, "randomSuffix");
+        meta.displayName(MiniMessage.miniMessage().deserialize(plugin.getMessageManager().getRaw("gui-random-suffix")));
+        meta.getPersistentDataContainer().set(
+                new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, "randomSuffix");
         randomItem.setItemMeta(meta);
         return randomItem;
     }
@@ -310,29 +308,28 @@ public class GuiManager {
     private ItemStack createInfoButton() {
         ItemStack infoItem = new ItemStack(Material.PAPER);
         ItemMeta meta = infoItem.getItemMeta();
-        meta.displayName(MiniMessage.miniMessage().deserialize("<blue><bold>Info"));
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, "infoButton");
+        meta.displayName(MiniMessage.miniMessage().deserialize(plugin.getMessageManager().getRaw("gui-info-button")));
+        meta.getPersistentDataContainer().set(
+                new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, "infoButton");
         infoItem.setItemMeta(meta);
         return infoItem;
     }
 
-
     private ItemStack createSuffixItem(String suffix, boolean ownsSuffix, Player player) {
-        ItemStack suffixItem = new ItemStack(Material.PAPER);
-        ItemMeta meta = suffixItem.getItemMeta();
-        String formattedSuffix = suffix.replace(plugin.getConfig().getString("suffix.prefix", "suffix_"), "");
+        String configSuffix = plugin.getConfig().getString("suffix.prefix", "suffix_");
+        String formattedSuffix = suffix.replace(configSuffix, "");
         if (!formattedSuffix.isEmpty()) {
             formattedSuffix = Character.toUpperCase(formattedSuffix.charAt(0)) + formattedSuffix.substring(1);
         }
 
-        formattedSuffix = formattedSuffix + " Suffix";
+        ItemStack suffixItem = ownsSuffix ? new ItemStack(Material.NAME_TAG) : new ItemStack(Material.PAPER);
+        ItemMeta meta = suffixItem.getItemMeta();
 
-        // Set item name and enchant if owned
-        Component displayName = MiniMessage.miniMessage().deserialize(ownsSuffix ? "<green><bold>" + formattedSuffix : "<red>" + formattedSuffix);
-        meta.displayName(displayName);
+        String nameKey = ownsSuffix ? "gui-suffix-name-owned" : "gui-suffix-name-unowned";
+        meta.displayName(MiniMessage.miniMessage().deserialize(
+                plugin.getMessageManager().getRaw(nameKey, "%suffix%", formattedSuffix)));
 
         if (ownsSuffix) {
-            suffixItem = new ItemStack(Material.NAME_TAG);
             meta.addEnchant(org.bukkit.enchantments.Enchantment.DURABILITY, 1, true);
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         }
@@ -341,35 +338,36 @@ public class GuiManager {
         rank = rank.replace(plugin.getConfig().getString("player.rankPlaceholder", "%vault_prefix%"), "&7");
 
         String groupSuffixColor = luckPermsHook.getGroupSuffixColor(suffix);
+        if (groupSuffixColor == null) groupSuffixColor = "&7";
 
         boolean isPurchasable = true;
-
         try {
             List<String> allSuffixes = plugin.getSuffixDatabase().getAllSuffixes();
-            if (allSuffixes.contains(suffix.replace(plugin.getConfig().getString("suffix.prefix", "suffix_"), "").toLowerCase())) isPurchasable = false;
+            if (allSuffixes.contains(suffix.replace(configSuffix, "").toLowerCase())) isPurchasable = false;
         } catch (SQLException e) {
             e.printStackTrace();
         }
 
-        if (groupSuffixColor == null) groupSuffixColor = "&7";
+        String colorConverted = ChatColor.translateAlternateColorCodes('&', groupSuffixColor);
 
-        // Set the lore using parsed legacy color codes
         meta.lore(List.of(
                 Component.empty(),
-                MiniMessage.miniMessage().deserialize("<aqua><bold> | </bold>Suffix: "),
-                ChatUtil.parseLegacyColors(ChatColor.translateAlternateColorCodes('&', groupSuffixColor)),
+                MiniMessage.miniMessage().deserialize(plugin.getMessageManager().getRaw("gui-suffix-lore-suffix")),
+                ChatUtil.parseLegacyColors(colorConverted),
                 Component.empty(),
-                MiniMessage.miniMessage().deserialize("<aqua><bold> | </bold>Preview: "),
-                ChatUtil.parseLegacyColors(rank + player.getName() + ChatColor.translateAlternateColorCodes('&', groupSuffixColor)), // Convert legacy codes for rank and suffix
+                MiniMessage.miniMessage().deserialize(plugin.getMessageManager().getRaw("gui-suffix-lore-preview")),
+                ChatUtil.parseLegacyColors(rank + player.getName() + colorConverted),
                 Component.empty(),
-                MiniMessage.miniMessage().deserialize("<aqua><bold> | </bold>Active: <bold>" + luckPermsHook.hasSuffix(player.getUniqueId(), suffix)),
-                MiniMessage.miniMessage().deserialize("<aqua><bold> | </bold>Purchasable: <bold>" + isPurchasable)
-
+                MiniMessage.miniMessage().deserialize(plugin.getMessageManager().getRaw("gui-suffix-lore-active",
+                        "%value%", String.valueOf(luckPermsHook.hasSuffix(player.getUniqueId(), suffix)))),
+                MiniMessage.miniMessage().deserialize(plugin.getMessageManager().getRaw("gui-suffix-lore-purchasable",
+                        "%value%", String.valueOf(isPurchasable)))
         ));
 
-        // Add NBT tag
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "suffix"), PersistentDataType.STRING, suffix);
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, "suffixItem");
+        meta.getPersistentDataContainer().set(
+                new NamespacedKey(plugin, "suffix"), PersistentDataType.STRING, suffix);
+        meta.getPersistentDataContainer().set(
+                new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, "suffixItem");
         suffixItem.setItemMeta(meta);
         return suffixItem;
     }

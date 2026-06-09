@@ -3,12 +3,10 @@ package me.zombieman.dev.suffixesplus.managers;
 import me.zombieman.dev.suffixesplus.SuffixesPlus;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 
 import java.sql.SQLException;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class PurchasedManager {
 
@@ -18,15 +16,17 @@ public class PurchasedManager {
         this.plugin = plugin;
     }
 
-    public void givePurchasedRole(CommandSender player, String playerName, String all) {
+    public void givePurchasedRole(CommandSender sender, String playerName, String all) {
 
-        if (all == null) player.sendMessage("Invalid arguments!");
+        if (all == null) {
+            sender.sendMessage(plugin.getMessageManager().get("purchased-invalid-arguments"));
+            return;
+        }
 
         if (!all.equalsIgnoreCase("purchasable") && !all.equalsIgnoreCase("all") && !all.equalsIgnoreCase("reset")) return;
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
-
                 UUID uuid = null;
                 if (plugin.getDatabase().getUuidByUsername(playerName) != null)
                     uuid = UUID.fromString(plugin.getDatabase().getUuidByUsername(playerName));
@@ -35,25 +35,26 @@ public class PurchasedManager {
                 if (target != null && uuid == null) uuid = target.getUniqueId();
 
                 if (uuid == null) {
-                    player.sendMessage("Player not found!");
+                    sender.sendMessage(plugin.getMessageManager().get("player-not-found"));
                     return;
                 }
 
                 plugin.getDatabase().updatePurchasable(uuid, all.replace("reset", "null"));
 
                 if (all.equalsIgnoreCase("reset")) {
-                    player.sendMessage("Successfully reset " + playerName + " suffix access!");
+                    sender.sendMessage(plugin.getMessageManager().get("purchased-reset-success", "%player%", playerName));
                     return;
                 }
 
-                String message = all.equalsIgnoreCase("purchasable") ? " purchasable " : all.equalsIgnoreCase("all") ? " " : null;
+                String typeWord = all.equalsIgnoreCase("purchasable") ? " purchasable " : " ";
+                sender.sendMessage(plugin.getMessageManager().get("purchased-give-success",
+                        "%player%", playerName,
+                        "%type%", typeWord));
 
-                player.sendMessage("Successfully given " + playerName + " all" + message + "suffixes!");
             } catch (SQLException e) {
-                player.sendMessage("Database error!");
+                sender.sendMessage(plugin.getMessageManager().get("db-error"));
                 e.printStackTrace();
             }
         });
     }
-
 }

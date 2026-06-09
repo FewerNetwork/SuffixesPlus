@@ -6,7 +6,6 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Sound;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -17,246 +16,241 @@ import org.bukkit.entity.Player;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 public class SuffixCmd implements CommandExecutor, TabCompleter {
 
-    private SuffixesPlus plugin;
+    private final SuffixesPlus plugin;
+
     public SuffixCmd(SuffixesPlus plugin) {
         this.plugin = plugin;
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof Player)) return false;
-
-        Player player = (Player) sender;
+        if (!(sender instanceof Player player)) return false;
 
         if (!player.hasPermission("suffixsplus.command.suffix")) {
-            player.sendMessage(ChatColor.RED + "You don't have permission to run this command!");
+            player.sendMessage(plugin.getMessageManager().get("no-permission"));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return false;
         }
 
-        MiniMessage miniMessage = MiniMessage.miniMessage();
-
-        if (args.length >= 1 && args[0].equalsIgnoreCase("notification") && plugin.getConfig().getBoolean("suffix.notification", true)) {
+        // /suffix notification
+        if (args.length >= 1 && args[0].equalsIgnoreCase("notification")
+                && plugin.getConfig().getBoolean("suffix.notification", true)) {
 
             Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-
                 try {
-                    String offOrOn = "<#FF0000><bold>OFF</bold>";
+                    boolean currentlyOn = plugin.getDatabase().getPlayer(player.getUniqueId(), player.getName()).getNotifications();
+                    boolean newValue = !currentlyOn;
 
-                    boolean notification = false;
+                    plugin.getDatabase().updateNotification(player.getUniqueId(), newValue);
 
-                    if (!plugin.getDatabase().getPlayer(player.getUniqueId(), player.getName()).getNotifications()) {
-                        notification = true;
-                        offOrOn = "<#00FF00><bold>ON</bold>";
-                    }
-
-                    plugin.getDatabase().updateNotification(player.getUniqueId(), notification);
-
-                    player.sendMessage(MiniMessage.miniMessage().deserialize("<#00FF00>Notifications turned " + offOrOn + "<#00FF00>!"));
+                    player.sendMessage(plugin.getMessageManager().get(
+                            newValue ? "suffix-notification-on" : "suffix-notification-off"));
                     player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
+
                 } catch (SQLException e) {
                     e.printStackTrace();
-                    player.sendMessage(ChatColor.RED + "There was an error trying to connect to the database, please try again later.");
+                    player.sendMessage(plugin.getMessageManager().get("db-error"));
                     player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
-                    throw new RuntimeException(e);
                 }
             });
 
             return true;
         }
 
+        // Admin subcommands
         if (args.length >= 1 && player.hasPermission("suffixsplus.command.suffixadmin")) {
 
             String action = args[0];
-
             String configSuffix = plugin.getConfig().getString("suffix.prefix", "suffix_");
-            String suffixPrefix = configSuffix;
 
             switch (action) {
-                case "add":
 
+                case "add": {
                     if (args.length < 2) {
-                        player.sendMessage(ChatColor.YELLOW + "Usage: /suffix add <suffix>");
+                        player.sendMessage(plugin.getMessageManager().get("suffix-add-usage"));
+                        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                        return false;
+                    }
+
+                    String suffix = args[1];
+                    boolean contains = plugin.getLuckPermsHook().getAllSuffixes()
+                            .contains(configSuffix + suffix.replace(configSuffix, ""));
+
+                    if (!contains) {
+                        player.sendMessage(plugin.getMessageManager().get("suffix-add-invalid", "%suffix%", suffix));
+                        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                        return false;
+                    }
+
+                    try {
+                        if (plugin.getSuffixDatabase().getAllSuffixes().contains(suffix)) {
+                            player.sendMessage(plugin.getMessageManager().get("suffix-add-already-exists"));
+                            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                            return false;
+                        }
+
+                        plugin.getSuffixDatabase().addSuffix(suffix);
+                        player.sendMessage(plugin.getMessageManager().get("suffix-add-success", "%suffix%", suffix));
+                        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
+
+                    } catch (SQLException e) {
+                        player.sendMessage(plugin.getMessageManager().get("db-error"));
+                        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                        throw new RuntimeException(e);
+                    }
+                    return true;
+                }
+
+                case "remove": {
+                    if (args.length < 2) {
+                        player.sendMessage(plugin.getMessageManager().get("suffix-remove-usage"));
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                         return false;
                     }
 
                     String suffix = args[1];
 
-                    boolean contains = plugin.getLuckPermsHook().getAllSuffixes().contains(suffixPrefix + suffix.replace(suffixPrefix, ""));
-
-                    if (!contains) {
-                        player.sendMessage(ChatColor.RED + "The " + suffix + " isn't a valid suffix.");
+                    if (!plugin.getLuckPermsHook().getAllSuffixes()
+                            .contains(configSuffix + suffix.replace(configSuffix, ""))) {
+                        player.sendMessage(plugin.getMessageManager().get("suffix-remove-invalid", "%suffix%", suffix));
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                         return false;
                     }
 
                     try {
-
-                        if (plugin.getSuffixDatabase().getAllSuffixes().contains(suffix)) {
-                            player.sendMessage(ChatColor.RED + "This suffix is already a non purchasable suffix!");
+                        if (!plugin.getSuffixDatabase().getAllSuffixes().contains(suffix)) {
+                            player.sendMessage(plugin.getMessageManager().get("suffix-remove-not-in-list"));
                             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                             return false;
                         }
 
-                        plugin.getSuffixDatabase().addSuffix(suffix);
-                        player.sendMessage(ChatColor.GREEN + "Successfully added the " + suffix + " to the list of non purchasable suffixes.");
+                        plugin.getSuffixDatabase().removeSuffix(suffix);
+                        player.sendMessage(plugin.getMessageManager().get("suffix-remove-success", "%suffix%", suffix));
                         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
+
                     } catch (SQLException e) {
-                        player.sendMessage(ChatColor.RED + "There was an error trying to connect to the database, please try again later.");
+                        player.sendMessage(plugin.getMessageManager().get("db-error"));
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                         throw new RuntimeException(e);
                     }
                     return true;
+                }
 
-                case "remove":
-
-                    if (args.length < 2) {
-                        player.sendMessage(ChatColor.YELLOW + "Usage: /suffix remove <suffix>");
-                        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
-                        return false;
-                    }
-
-                    if (!plugin.getLuckPermsHook().getAllSuffixes().contains(suffixPrefix + args[1].replace(suffixPrefix, ""))) {
-                        player.sendMessage(ChatColor.RED + "The " + args[1] + " isn't a valid suffix.");
-                        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
-                        return false;
-                    }
-
-                    try {
-
-                        if (!plugin.getSuffixDatabase().getAllSuffixes().contains(args[1])) {
-                            player.sendMessage(ChatColor.RED + "This suffix is not in the list of non purchasable suffixes!");
-                            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
-                            return false;
-                        }
-
-                        plugin.getSuffixDatabase().removeSuffix(args[1]);
-                        player.sendMessage(ChatColor.GREEN + "Successfully removed the " + args[1] + " from the list of non purchasable suffixes.");
-                        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
-                    } catch (SQLException e) {
-                        player.sendMessage(ChatColor.RED + "There was an error trying to connect to the database, please try again later.");
-                        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
-                        throw new RuntimeException(e);
-                    }
-                    return true;
-
-                case "clear":
-
+                case "clear": {
                     try {
                         plugin.getSuffixDatabase().clearSuffixes();
-                        player.sendMessage(ChatColor.GREEN + "Successfully cleared the list of non purchasable suffixes..");
+                        player.sendMessage(plugin.getMessageManager().get("suffix-clear-success"));
                         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
                     } catch (SQLException e) {
-                        player.sendMessage(ChatColor.RED + "There was an error trying to connect to the database, please try again later.");
+                        player.sendMessage(plugin.getMessageManager().get("db-error"));
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                         throw new RuntimeException(e);
                     }
                     return true;
-                case "info":
+                }
 
+                case "info": {
                     if (plugin.getLuckPermsHook().getAllSuffixes().isEmpty()) {
-                        player.sendMessage(ChatColor.RED + "There aren't any suffixes in this list!");
+                        player.sendMessage(plugin.getMessageManager().get("suffix-info-no-suffixes"));
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                         return false;
                     }
 
                     try {
-
                         if (plugin.getSuffixDatabase().getAllSuffixes().isEmpty()) {
-                            player.sendMessage(ChatColor.RED.toString() + ChatColor.STRIKETHROUGH + "                                    ");
-                            player.sendMessage(ChatColor.RED + "There aren't any suffixes in this list!");
-                            player.sendMessage(ChatColor.RED.toString() + ChatColor.STRIKETHROUGH + "                                    ");
+                            player.sendMessage(plugin.getMessageManager().get("suffix-info-footer"));
+                            player.sendMessage(plugin.getMessageManager().get("suffix-info-no-suffixes"));
+                            player.sendMessage(plugin.getMessageManager().get("suffix-info-footer"));
                             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                             return false;
                         }
 
                         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
-
-                        player.sendMessage(ChatColor.AQUA.toString() + ChatColor.STRIKETHROUGH + " " + ChatColor.AQUA + " Non Purchasable Suffixes " + ChatColor.AQUA.toString() + ChatColor.STRIKETHROUGH + " ");
+                        player.sendMessage(plugin.getMessageManager().get("suffixes-header-nonpurchasable"));
 
                         for (String s : plugin.getSuffixDatabase().getAllSuffixes()) {
-                            player.sendMessage(ChatUtil.parseLegacyColors("&7Suffix: " + ChatColor.translateAlternateColorCodes('&', plugin.getLuckPermsHook().getGroupSuffixColor(configSuffix + s.replace(configSuffix, "")))));
+                            String color = org.bukkit.ChatColor.translateAlternateColorCodes('&',
+                                    plugin.getLuckPermsHook().getGroupSuffixColor(configSuffix + s.replace(configSuffix, "")));
+                            player.sendMessage(ChatUtil.parseLegacyColors("&7Suffix: " + color));
                         }
 
-                        player.sendMessage(ChatColor.AQUA.toString() + ChatColor.STRIKETHROUGH + "                                    ");
+                        player.sendMessage(plugin.getMessageManager().get("suffix-info-footer"));
 
                     } catch (SQLException e) {
-                        player.sendMessage(ChatColor.RED + "There was an error trying to connect to the database, please try again later.");
+                        player.sendMessage(plugin.getMessageManager().get("db-error"));
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                         throw new RuntimeException(e);
                     }
                     return true;
-                case "help":
+                }
 
-                    String suffixArg = "<suffix>";
+                case "help": {
+                    MiniMessage mm = MiniMessage.miniMessage();
+                    String suffixArg = args.length >= 2 ? args[1] : "<suffix>";
 
-                    if (args.length >= 2) {
-                        suffixArg = args[1];
-                    }
-
-                    player.sendMessage(ChatColor.GREEN.toString() + ChatColor.STRIKETHROUGH + "                                         ");
-                    player.sendMessage(ChatColor.GREEN + "Creating the suffix:");
-                    player.sendMessage(miniMessage.deserialize("<yellow>1. /lp creategroup suffix_" + suffixArg)
-                            .hoverEvent(HoverEvent.showText(miniMessage.deserialize("<green>Click here")))
-                            .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/lp creategroup suffix_" + suffixArg)));
-                    player.sendMessage(miniMessage.deserialize("<yellow>2. /lp editor")
-                            .hoverEvent(HoverEvent.showText(miniMessage.deserialize("<green>Click here")))
-                            .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/lp editor")));
-                    player.sendMessage(miniMessage.deserialize("<yellow>3. Add `suffix.0.<suffix>` to the suffix group."));
-                    player.sendMessage(ChatColor.GREEN.toString() + ChatColor.STRIKETHROUGH + "                                         ");
-                    player.sendMessage(ChatColor.GREEN + "Making the suffix non purchasable:");
-                    player.sendMessage(miniMessage.deserialize("<yellow>1. /suffix add <bold>" + suffixArg + "</bold>")
-                            .hoverEvent(HoverEvent.showText(miniMessage.deserialize("<green>Click here")))
-                            .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/suffix add " + suffixArg)));
-                    player.sendMessage(ChatColor.GREEN.toString() + ChatColor.STRIKETHROUGH + "                                         ");
-                    player.sendMessage(ChatColor.GREEN + "Checking for the suffixes:");
-                    player.sendMessage(miniMessage.deserialize("<yellow>1. /suffixes")
-                            .hoverEvent(HoverEvent.showText(miniMessage.deserialize("<green>Click here")))
-                            .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/suffixes")));
-                    player.sendMessage(ChatColor.GREEN.toString() + ChatColor.STRIKETHROUGH + "                                         ");
-                    player.sendMessage(ChatColor.GREEN + "Adding the permission:");
-                    player.sendMessage(miniMessage.deserialize("<yellow>1. /lp user <player> permission")
-                            .hoverEvent(HoverEvent.showText(miniMessage.deserialize("<green>Click here")))
-                            .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/lp user <player> permission setsuffixsplus.suffix." + suffixArg)));
-                    player.sendMessage(miniMessage.deserialize("<yellow>   set suffixsplus.suffix." + suffixArg)
-                            .hoverEvent(HoverEvent.showText(miniMessage.deserialize("<green>Click here")))
-                            .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/lp user <player> permission setsuffixsplus.suffix." + suffixArg)));
-                    player.sendMessage(miniMessage.deserialize("<#7289da><strikethrough>                                         </strikethrough>"));
-                    player.sendMessage(miniMessage.deserialize("<#7289da><bold>Click Here To Get Support!</bold>")
-                            .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.OPEN_URL, "https://discord.gg/SuypvRBa4c"))
-                            .hoverEvent(HoverEvent.showText(MiniMessage.miniMessage().deserialize("<#7289da>Click Here To Get Support!"))));
-                    player.sendMessage(miniMessage.deserialize("<#7289da><strikethrough>                                         </strikethrough>"));
-                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
-
-                    return true;
-
-                case "support":
-                    player.sendMessage(miniMessage.deserialize("<#7289da><strikethrough>                                         </strikethrough>"));
-                    player.sendMessage(miniMessage.deserialize("<#7289da><bold>Click Here To Get Support!</bold>")
-                            .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.OPEN_URL, "https://discord.gg/SuypvRBa4c"))
-                            .hoverEvent(HoverEvent.showText(MiniMessage.miniMessage().deserialize("<#7289da>Click Here To Get Support!"))));
-                    player.sendMessage(miniMessage.deserialize("<#7289da><strikethrough>                                         </strikethrough>"));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-help-divider"));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-help-creating-title"));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-help-step1", "%suffix%", suffixArg)
+                            .hoverEvent(HoverEvent.showText(plugin.getMessageManager().get("suffix-help-click-here")))
+                            .clickEvent(ClickEvent.suggestCommand("/lp creategroup suffix_" + suffixArg)));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-help-step2")
+                            .hoverEvent(HoverEvent.showText(plugin.getMessageManager().get("suffix-help-click-here")))
+                            .clickEvent(ClickEvent.suggestCommand("/lp editor")));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-help-step3"));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-help-divider"));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-help-nonpurchasable-title"));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-help-nonpurchasable-step1", "%suffix%", suffixArg)
+                            .hoverEvent(HoverEvent.showText(plugin.getMessageManager().get("suffix-help-click-here")))
+                            .clickEvent(ClickEvent.suggestCommand("/suffix add " + suffixArg)));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-help-divider"));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-help-checking-title"));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-help-checking-step1")
+                            .hoverEvent(HoverEvent.showText(plugin.getMessageManager().get("suffix-help-click-here")))
+                            .clickEvent(ClickEvent.suggestCommand("/suffixes")));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-help-divider"));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-help-permission-title"));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-help-permission-step1")
+                            .hoverEvent(HoverEvent.showText(plugin.getMessageManager().get("suffix-help-click-here")))
+                            .clickEvent(ClickEvent.suggestCommand("/lp user <player> permission setsuffixsplus.suffix." + suffixArg)));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-help-permission-step2", "%suffix%", suffixArg)
+                            .hoverEvent(HoverEvent.showText(plugin.getMessageManager().get("suffix-help-click-here")))
+                            .clickEvent(ClickEvent.suggestCommand("/lp user <player> permission setsuffixsplus.suffix." + suffixArg)));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-support-divider"));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-support-label")
+                            .clickEvent(ClickEvent.openUrl("https://discord.gg/SuypvRBa4c"))
+                            .hoverEvent(HoverEvent.showText(plugin.getMessageManager().get("suffix-support-hover"))));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-support-divider"));
                     player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
                     return true;
+                }
 
-                default:
-                    player.sendMessage("Unknown subcommand. Usage: /suffix <add|remove|clear|info|help|notification>");
+                case "support": {
+                    player.sendMessage(plugin.getMessageManager().get("suffix-support-divider"));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-support-label")
+                            .clickEvent(ClickEvent.openUrl("https://discord.gg/SuypvRBa4c"))
+                            .hoverEvent(HoverEvent.showText(plugin.getMessageManager().get("suffix-support-hover"))));
+                    player.sendMessage(plugin.getMessageManager().get("suffix-support-divider"));
+                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
+                    return true;
+                }
+
+                default: {
+                    player.sendMessage(plugin.getMessageManager().get("suffix-unknown-subcommand"));
                     return false;
+                }
             }
         }
 
+        // Open GUI
         try {
             plugin.guiManager.openSuffixGui(player, 0);
         } catch (SQLException e) {
-            player.sendMessage(ChatColor.RED + "There was an error while connecting to database. Please try again later.");
-            System.err.println("Error connecting to database: " + e.getMessage());
-            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f ,1.0f);
+            player.sendMessage(plugin.getMessageManager().get("db-error"));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return false;
         }
         return false;
@@ -266,11 +260,11 @@ public class SuffixCmd implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> completions = new ArrayList<>();
 
-        Player player = (Player) sender;
+        if (!(sender instanceof Player player)) return null;
 
         if (!player.hasPermission("suffixsplus.command.suffixadmin")) {
-            if (args.length == 1 && plugin.getConfig().getBoolean("suffix.notification", true)) completions.add("notification");
-
+            if (args.length == 1 && plugin.getConfig().getBoolean("suffix.notification", true))
+                completions.add("notification");
             String lastArg = args[args.length - 1];
             return completions.stream().filter(s -> s.startsWith(lastArg)).collect(Collectors.toList());
         }
@@ -291,7 +285,6 @@ public class SuffixCmd implements CommandExecutor, TabCompleter {
                             completions.add(suffix.replace(plugin.getConfig().getString("suffix.prefix", "suffix_"), ""));
                         }
                     } catch (SQLException e) {
-                        completions.add("Error connecting to database!");
                         throw new RuntimeException(e);
                     }
                 }
@@ -299,7 +292,6 @@ public class SuffixCmd implements CommandExecutor, TabCompleter {
                 try {
                     completions.addAll(plugin.getSuffixDatabase().getAllSuffixes());
                 } catch (SQLException e) {
-                    completions.add("Error connecting to database!");
                     throw new RuntimeException(e);
                 }
             } else if (args[0].equalsIgnoreCase("help")) {
