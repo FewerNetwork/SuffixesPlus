@@ -32,6 +32,12 @@ public class SuffixAdminCmd implements CommandExecutor, TabCompleter {
             return false;
         }
 
+        if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
+            plugin.reload();
+            sender.sendMessage(plugin.getMessageManager().get("suffixadmin-reload-success"));
+            return true;
+        }
+
         if (args.length < 3 || !args[0].equalsIgnoreCase("set")) {
             sender.sendMessage(plugin.getMessageManager().get("suffixadmin-usage"));
             return false;
@@ -73,6 +79,7 @@ public class SuffixAdminCmd implements CommandExecutor, TabCompleter {
 
         if (args.length == 1) {
             completions.add("set");
+            completions.add("reload");
         } else if (args.length == 2 && args[0].equalsIgnoreCase("set")) {
             for (Player target : Bukkit.getOnlinePlayers()) {
                 completions.add(target.getName());

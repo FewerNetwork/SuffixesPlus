@@ -20,10 +20,17 @@ import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandMap;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.lang.reflect.Field;
 import java.sql.SQLException;
+import java.util.List;
 
 public final class SuffixesPlus extends JavaPlugin {
 
@@ -94,9 +101,17 @@ public final class SuffixesPlus extends JavaPlugin {
         new PlayerListener(this);
         new InventoryClickListener(this, luckPermsHook);
 
-        getCommand("suffix").setExecutor(new SuffixCmd(this));
-        getCommand("suffixes").setExecutor(new SuffixesCmd(this));
-        getCommand("suffixadmin").setExecutor(new SuffixAdminCmd(this));
+        SuffixCmd suffixCmd = new SuffixCmd(this);
+        SuffixesCmd suffixesCmd = new SuffixesCmd(this);
+        SuffixAdminCmd suffixAdminCmd = new SuffixAdminCmd(this);
+
+        String suffixName = getConfig().getString("commands.suffix", "suffix");
+        String suffixesName = getConfig().getString("commands.suffixes", "suffixes");
+        String suffixAdminName = getConfig().getString("commands.suffixadmin", "suffixadmin");
+
+        registerCommand(suffixName, suffixCmd, suffixCmd);
+        registerCommand(suffixesName, suffixesCmd, null);
+        registerCommand(suffixAdminName, suffixAdminCmd, suffixAdminCmd);
 
         checkIfPlayerHasSuffix();
     }
@@ -163,6 +178,39 @@ public final class SuffixesPlus extends JavaPlugin {
         }, 0L, 20L * 60 * 20);
     }
 
+
+    public void reload() {
+        reloadConfig();
+        messageManager.load();
+        guiManager = new GuiManager(this, luckPermsHook);
+    }
+
+    private void registerCommand(String name, CommandExecutor executor, TabCompleter tabCompleter) {
+        try {
+            Field field = Bukkit.getServer().getClass().getDeclaredField("commandMap");
+            field.setAccessible(true);
+            CommandMap commandMap = (CommandMap) field.get(Bukkit.getServer());
+
+            Command command = new Command(name) {
+                @Override
+                public boolean execute(CommandSender sender, String commandLabel, String[] args) {
+                    return executor.onCommand(sender, this, commandLabel, args);
+                }
+
+                @Override
+                public List<String> tabComplete(CommandSender sender, String alias, String[] args) {
+                    if (tabCompleter == null) return super.tabComplete(sender, alias, args);
+                    List<String> result = tabCompleter.onTabComplete(sender, this, alias, args);
+                    return result != null ? result : super.tabComplete(sender, alias, args);
+                }
+            };
+
+            commandMap.register("suffixesplus", command);
+        } catch (Exception e) {
+            getLogger().severe("Failed to register command /" + name + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
 
     public MessageManager getMessageManager() { return messageManager; }
     public LuckPermsHook getLuckPermsHook() { return luckPermsHook; }

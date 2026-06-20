@@ -1,5 +1,12 @@
 language: en
 
+# Customize the command names players use to interact with the plugin.
+# Example: change "suffix" to "tag" so players use /tag instead of /suffix.
+commands:
+  suffix: suffix
+  suffixes: suffixes
+  suffixadmin: suffixadmin
+
 database:
   username: USERNAME
   password: PASSWORD

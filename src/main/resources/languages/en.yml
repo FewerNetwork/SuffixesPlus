@@ -27,6 +27,7 @@ suffixes-entry: "<gray>Suffix: %suffix%"
 suffixadmin-usage: "<yellow>Usage: /suffixadmin set <player> <all, purchasable, reset>"
 suffixadmin-unknown-player: "<red>Unknown player %player%."
 suffixadmin-db-error: "<red>There was an error while accessing the database."
+suffixadmin-reload-success: "<green>SuffixesPlus config and language files reloaded successfully!"
 
 # PurchasedManager
 purchased-invalid-arguments: "<red>Invalid arguments!"

@@ -3,8 +3,3 @@ version: '${project.version}'
 main: me.zombieman.dev.suffixesplus.SuffixesPlus
 api-version: '1.13'
 authors: [zombieman]
-commands:
-  suffix:
-  suffixes:
-  suffixadmin:
-    permission: suffixsplus.command.suffixadmin
