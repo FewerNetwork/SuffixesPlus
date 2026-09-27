@@ -2,6 +2,7 @@ package me.zombieman.dev.suffixesplus.managers;
 
 import me.clip.placeholderapi.PlaceholderAPI;
 import me.zombieman.dev.suffixesplus.SuffixesPlus;
+import me.zombieman.dev.suffixesplus.databases.CollectionData;
 import me.zombieman.dev.suffixesplus.hooks.LuckPermsHook;
 import me.zombieman.dev.suffixesplus.utils.ChatUtil;
 import net.kyori.adventure.text.Component;
@@ -31,16 +32,36 @@ public class GuiManager {
 
     private final Map<UUID, Integer> playerPages = new HashMap<>();
 
+    private final Map<UUID, Boolean> collectionsViewEnabled = new HashMap<>();
+
+    public boolean isCollectionsViewEnabled(Player player) {
+        return collectionsViewEnabled.getOrDefault(player.getUniqueId(), false);
+    }
+
+    public void setCollectionsViewEnabled(Player player, boolean enabled) {
+        collectionsViewEnabled.put(player.getUniqueId(), enabled);
+    }
+
     public void openSuffixGui(Player player, int page) throws SQLException {
+        if (isCollectionsViewEnabled(player)) {
+            openCollectionsOverviewGui(player, page);
+        } else {
+            openFlatSuffixGui(player, page);
+        }
+    }
+
+    private void openFlatSuffixGui(Player player, int page) throws SQLException {
 
         List<String> allSuffixes = luckPermsHook.getAllSuffixes();
         allSuffixes.removeIf(suffix -> suffix == null || suffix.isEmpty());
 
         if (allSuffixes.isEmpty()) {
-            player.sendMessage(plugin.getMessageManager().get("gui-no-suffixes"));
+            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("gui-no-suffixes")));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return;
         }
+
+        boolean hasCollections = !plugin.getCollectionDatabase().getAllCollectionData().isEmpty();
 
         int suffixesPerPage = 36;
         int maxPage = (int) Math.ceil((double) allSuffixes.size() / suffixesPerPage);
@@ -104,11 +125,14 @@ public class GuiManager {
             gui.setItem(40, createClearAllButton());
             gui.setItem(41, createRandomSuffixButton());
             gui.setItem(39, createInfoButton());
+            if (hasCollections) {
+                gui.setItem(38, createCollectionsToggleButton(false));
+            }
 
             if (page < maxPage - 1)
-                gui.setItem(44, createNavigationButton(plugin.getMessageManager().getRaw("gui-nav-next"), "next", Material.ARROW));
+                gui.setItem(44, createNavigationButton(plugin.getMessageManager().getRaw("gui-nav-next"), "next", Material.ARROW, null));
             if (page > 0)
-                gui.setItem(36, createNavigationButton(plugin.getMessageManager().getRaw("gui-nav-previous"), "previous", Material.ARROW));
+                gui.setItem(36, createNavigationButton(plugin.getMessageManager().getRaw("gui-nav-previous"), "previous", Material.ARROW, null));
 
             try {
                 if (player.hasPermission("suffixsplus.gui.preview")) {
@@ -130,12 +154,340 @@ public class GuiManager {
         });
     }
 
-    private ItemStack createNavigationButton(String label, String dataValue, Material material) {
+    private void openCollectionsOverviewGui(Player player, int page) throws SQLException {
+
+        List<String> allSuffixes = luckPermsHook.getAllSuffixes();
+        allSuffixes.removeIf(suffix -> suffix == null || suffix.isEmpty());
+
+        if (allSuffixes.isEmpty()) {
+            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("gui-no-suffixes")));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
+
+        String configSuffix = plugin.getConfig().getString("suffix.prefix", "suffix_");
+        List<CollectionData> collections = plugin.getCollectionDatabase().getAllCollectionData();
+
+        // lower-cased member suffix name -> the collection it belongs to
+        // (first collection that claims a given suffix wins).
+        Map<String, CollectionData> memberToCollection = new HashMap<>();
+        Map<String, List<String>> collectionMembers = new LinkedHashMap<>();
+        for (CollectionData collection : collections) {
+            List<String> members = plugin.getCollectionDatabase().fromStringToList(collection.getSuffix());
+            collectionMembers.put(collection.getId(), new ArrayList<>());
+            for (String member : members) {
+                if (member == null || member.isBlank()) continue;
+                memberToCollection.putIfAbsent(member.toLowerCase(), collection);
+            }
+        }
+
+        List<String> ungroupedSuffixes = new ArrayList<>();
+        for (String suffix : allSuffixes) {
+            String formatted = suffix.replace(configSuffix, "");
+            CollectionData collection = memberToCollection.get(formatted.toLowerCase());
+            if (collection != null) {
+                collectionMembers.get(collection.getId()).add(suffix);
+            } else {
+                ungroupedSuffixes.add(suffix);
+            }
+        }
+
+        int suffixesPerPage = 36;
+
+        List<CompletableFuture<ItemStack>> collectionFutures = new ArrayList<>();
+        for (CollectionData collection : collections) {
+            List<String> members = collectionMembers.get(collection.getId());
+            if (members == null || members.isEmpty()) continue; // nothing to show for this collection right now
+            collectionFutures.add(createCollectionItemAsync(player, collection, members));
+        }
+
+        List<CompletableFuture<ItemStack>> suffixFutures = new ArrayList<>();
+        for (String suffix : ungroupedSuffixes) {
+            CompletableFuture<ItemStack> future = createSuffixItemAsync(player, suffix);
+            if (future != null) suffixFutures.add(future);
+        }
+
+        List<CompletableFuture<ItemStack>> allFutures = new ArrayList<>();
+        allFutures.addAll(collectionFutures);
+        allFutures.addAll(suffixFutures);
+
+        CompletableFuture.allOf(allFutures.toArray(new CompletableFuture[0])).thenRun(() -> {
+
+            List<ItemStack> owned = new ArrayList<>();
+            List<ItemStack> notOwned = new ArrayList<>();
+
+            for (CompletableFuture<ItemStack> future : allFutures) {
+                try {
+                    ItemStack item = future.get();
+                    if (item == null) continue;
+                    ItemMeta meta = item.getItemMeta();
+                    boolean owns = meta != null && Boolean.TRUE.equals(
+                            meta.getPersistentDataContainer().get(
+                                    new NamespacedKey(plugin, "ownsSuffix"), PersistentDataType.BOOLEAN));
+                    if (owns) owned.add(item);
+                    else notOwned.add(item);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+
+            List<ItemStack> allItems = new ArrayList<>();
+            allItems.addAll(owned);
+            allItems.addAll(notOwned);
+
+            int maxPage = Math.max(1, (int) Math.ceil((double) allItems.size() / suffixesPerPage));
+
+            String title = plugin.getMessageManager().getRaw("gui-title",
+                    "%page%", String.valueOf(page + 1),
+                    "%maxPage%", String.valueOf(maxPage));
+            Inventory gui = Bukkit.createInventory(null, 5 * 9, MiniMessage.miniMessage().deserialize(title));
+
+            ItemStack blackPane = createPane();
+            for (int i = 36; i <= 44; i++) {
+                gui.setItem(i, blackPane);
+            }
+
+            int startIndex = page * suffixesPerPage;
+            int endIndex = Math.min(startIndex + suffixesPerPage, allItems.size());
+            for (int i = startIndex, slot = 0; i < endIndex && slot < 36; i++, slot++) {
+                gui.setItem(slot, allItems.get(i));
+            }
+
+            createPlayerHead(player, luckPermsHook.getPlayerSuffixes(player.getUniqueId()).size())
+                    .thenAccept(head -> gui.setItem(43, head));
+
+            gui.setItem(40, createClearAllButton());
+            gui.setItem(41, createRandomSuffixButton());
+            gui.setItem(39, createInfoButton());
+            gui.setItem(38, createCollectionsToggleButton(true));
+
+            if (page < maxPage - 1)
+                gui.setItem(44, createNavigationButton(plugin.getMessageManager().getRaw("gui-nav-next"), "next", Material.ARROW, null));
+            if (page > 0)
+                gui.setItem(36, createNavigationButton(plugin.getMessageManager().getRaw("gui-nav-previous"), "previous", Material.ARROW, null));
+
+            try {
+                if (player.hasPermission("suffixsplus.gui.preview")) {
+                    ItemStack preview = createPreview(player);
+                    gui.setItem(page > 0 ? 37 : 36, preview);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                setCurrentPage(player, page);
+                player.openInventory(gui);
+            });
+
+        }).exceptionally(ex -> {
+            ex.printStackTrace();
+            return null;
+        });
+    }
+
+    public void openCollectionGui(Player player, String collectionId, int page) throws SQLException {
+        CollectionData collection = plugin.getCollectionDatabase().getCollection(collectionId);
+        if (collection == null) {
+            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("collection-not-found", "%collection%", collectionId)));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
+
+        String configSuffix = plugin.getConfig().getString("suffix.prefix", "suffix_");
+        List<String> members = plugin.getCollectionDatabase().fromStringToList(collection.getSuffix());
+        List<String> allSuffixes = luckPermsHook.getAllSuffixes();
+
+        List<String> matchedSuffixes = new ArrayList<>();
+        for (String suffix : allSuffixes) {
+            if (suffix == null || suffix.isEmpty()) continue;
+            String formatted = suffix.replace(configSuffix, "");
+            for (String member : members) {
+                if (member.equalsIgnoreCase(formatted)) {
+                    matchedSuffixes.add(suffix);
+                    break;
+                }
+            }
+        }
+
+        if (matchedSuffixes.isEmpty()) {
+            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("gui-collection-empty",
+                    "%collection%", String.valueOf(collection.getCollection()))));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+            return;
+        }
+
+        int suffixesPerPage = 36;
+        List<CompletableFuture<ItemStack>> futures = new ArrayList<>();
+        for (String suffix : matchedSuffixes) {
+            CompletableFuture<ItemStack> future = createSuffixItemAsync(player, suffix);
+            if (future != null) futures.add(future);
+        }
+
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).thenRun(() -> {
+
+            List<ItemStack> owned = new ArrayList<>();
+            List<ItemStack> notOwned = new ArrayList<>();
+
+            for (CompletableFuture<ItemStack> future : futures) {
+                try {
+                    ItemStack item = future.get();
+                    if (item == null) continue;
+                    ItemMeta meta = item.getItemMeta();
+                    boolean owns = meta != null && Boolean.TRUE.equals(
+                            meta.getPersistentDataContainer().get(
+                                    new NamespacedKey(plugin, "ownsSuffix"), PersistentDataType.BOOLEAN));
+                    if (owns) owned.add(item);
+                    else notOwned.add(item);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+
+            List<ItemStack> allItems = new ArrayList<>();
+            allItems.addAll(owned);
+            allItems.addAll(notOwned);
+
+            int maxPage = Math.max(1, (int) Math.ceil((double) allItems.size() / suffixesPerPage));
+
+            String pageSuffix = plugin.getMessageManager().getRaw("gui-collection-title-page",
+                    "%page%", String.valueOf(page + 1), "%maxPage%", String.valueOf(maxPage));
+            String rawName = collection.getCollection() != null ? collection.getCollection() : collection.getId();
+            Component title = ChatUtil.parseLegacyColors(rawName + " ")
+                    .append(MiniMessage.miniMessage().deserialize(pageSuffix));
+
+            Inventory gui = Bukkit.createInventory(null, 5 * 9, title);
+
+            ItemStack blackPane = createPane();
+            for (int i = 36; i <= 44; i++) {
+                gui.setItem(i, blackPane);
+            }
+
+            int startIndex = page * suffixesPerPage;
+            int endIndex = Math.min(startIndex + suffixesPerPage, allItems.size());
+            for (int i = startIndex, slot = 0; i < endIndex && slot < 36; i++, slot++) {
+                gui.setItem(slot, allItems.get(i));
+            }
+
+            gui.setItem(40, createBackButton());
+
+            if (page < maxPage - 1)
+                gui.setItem(44, createNavigationButton(plugin.getMessageManager().getRaw("gui-nav-next"), "next", Material.ARROW, collectionId));
+            if (page > 0)
+                gui.setItem(36, createNavigationButton(plugin.getMessageManager().getRaw("gui-nav-previous"), "previous", Material.ARROW, collectionId));
+
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                setCurrentPage(player, page);
+                player.openInventory(gui);
+            });
+
+        }).exceptionally(ex -> {
+            ex.printStackTrace();
+            return null;
+        });
+    }
+
+    private CompletableFuture<ItemStack> createCollectionItemAsync(Player player, CollectionData collection, List<String> members) {
+        List<CompletableFuture<ItemStack>> memberFutures = new ArrayList<>();
+        for (String member : members) {
+            CompletableFuture<ItemStack> future = createSuffixItemAsync(player, member);
+            if (future != null) memberFutures.add(future);
+        }
+
+        return CompletableFuture.allOf(memberFutures.toArray(new CompletableFuture[0])).thenApply(v -> {
+            boolean ownsAny = false;
+            for (CompletableFuture<ItemStack> future : memberFutures) {
+                try {
+                    ItemStack item = future.get();
+                    if (item == null) continue;
+                    ItemMeta meta = item.getItemMeta();
+                    if (meta != null && Boolean.TRUE.equals(meta.getPersistentDataContainer()
+                            .get(new NamespacedKey(plugin, "ownsSuffix"), PersistentDataType.BOOLEAN))) {
+                        ownsAny = true;
+                        break;
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            return createCollectionItem(collection, members.size(), ownsAny);
+        });
+    }
+
+    private ItemStack createCollectionItem(CollectionData collection, int memberCount, boolean ownsAny) {
+        Material material = collection.getIcon() != null ? Material.matchMaterial(collection.getIcon()) : null;
+        if (material == null) material = Material.CHEST;
+
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+
+        String rawName = collection.getCollection() != null ? collection.getCollection() : collection.getId();
+        meta.displayName(ChatUtil.parseLegacyColors(rawName));
+
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.empty());
+
+        String rawLore = collection.getLore();
+        if (rawLore != null && !rawLore.isBlank()) {
+            List<String> loreLines = plugin.getCollectionDatabase().fromStringToList(rawLore);
+
+            for (String line : loreLines) {
+                lore.add(ChatUtil.parseLegacyColors(line.trim()));
+            }
+            lore.add(Component.empty());
+        }
+
+        lore.add(MiniMessage.miniMessage().deserialize(
+                plugin.getMessageManager().getRaw("gui-collection-lore-count", "%count%", String.valueOf(memberCount))));
+        lore.add(MiniMessage.miniMessage().deserialize(plugin.getMessageManager().getRaw("gui-collection-lore-open")));
+        meta.lore(lore);
+
+        if (ownsAny) {
+            meta.addEnchant(org.bukkit.enchantments.Enchantment.DURABILITY, 1, true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        }
+
+        meta.getPersistentDataContainer().set(
+                new NamespacedKey(plugin, "collectionId"), PersistentDataType.STRING, collection.getId());
+        meta.getPersistentDataContainer().set(
+                new NamespacedKey(plugin, "ownsSuffix"), PersistentDataType.BOOLEAN, ownsAny);
+        meta.getPersistentDataContainer().set(
+                new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, "collectionItem");
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createCollectionsToggleButton(boolean currentlyEnabled) {
+        ItemStack toggleItem = new ItemStack(currentlyEnabled ? Material.ENDER_CHEST : Material.CHEST);
+        ItemMeta meta = toggleItem.getItemMeta();
+        String key = currentlyEnabled ? "gui-collections-toggle-on" : "gui-collections-toggle-off";
+        meta.displayName(MiniMessage.miniMessage().deserialize(plugin.getMessageManager().getRaw(key)));
+        meta.getPersistentDataContainer().set(
+                new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, "toggleCollectionsView");
+        toggleItem.setItemMeta(meta);
+        return toggleItem;
+    }
+
+    private ItemStack createBackButton() {
+        ItemStack backItem = new ItemStack(Material.ARROW);
+        ItemMeta meta = backItem.getItemMeta();
+        meta.displayName(MiniMessage.miniMessage().deserialize(plugin.getMessageManager().getRaw("gui-collection-back")));
+        meta.getPersistentDataContainer().set(
+                new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, "backToCollections");
+        backItem.setItemMeta(meta);
+        return backItem;
+    }
+
+    private ItemStack createNavigationButton(String label, String dataValue, Material material, String collectionId) {
         ItemStack button = new ItemStack(material);
         ItemMeta meta = button.getItemMeta();
         meta.displayName(MiniMessage.miniMessage().deserialize(label));
         meta.getPersistentDataContainer().set(
                 new NamespacedKey(plugin, "guiItem"), PersistentDataType.STRING, dataValue);
+        if (collectionId != null) {
+            meta.getPersistentDataContainer().set(
+                    new NamespacedKey(plugin, "collectionId"), PersistentDataType.STRING, collectionId);
+        }
         button.setItemMeta(meta);
         return button;
     }
@@ -225,7 +577,7 @@ public class GuiManager {
                                 && player.hasPermission("suffixsplus.access.purchasable"))
                             hasAccess = true;
                     } catch (SQLException e) {
-                        player.sendMessage(plugin.getMessageManager().get("db-error"));
+                        player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("db-error")));
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                         e.printStackTrace();
                     }

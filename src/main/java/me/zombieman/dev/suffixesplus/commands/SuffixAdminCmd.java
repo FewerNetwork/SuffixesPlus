@@ -1,6 +1,7 @@
 package me.zombieman.dev.suffixesplus.commands;
 
 import me.zombieman.dev.suffixesplus.SuffixesPlus;
+import me.zombieman.dev.suffixesplus.utils.ChatUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Sound;
@@ -28,18 +29,18 @@ public class SuffixAdminCmd implements CommandExecutor, TabCompleter {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
 
         if (!sender.hasPermission("suffixsplus.command.suffixadmin")) {
-            sender.sendMessage(plugin.getMessageManager().get("no-permission"));
+            sender.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("no-permission")));
             return false;
         }
 
         if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
             plugin.reload();
-            sender.sendMessage(plugin.getMessageManager().get("suffixadmin-reload-success"));
+            sender.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffixadmin-reload-success")));
             return true;
         }
 
         if (args.length < 3 || !args[0].equalsIgnoreCase("set")) {
-            sender.sendMessage(plugin.getMessageManager().get("suffixadmin-usage"));
+            sender.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffixadmin-usage")));
             return false;
         }
 
@@ -47,7 +48,7 @@ public class SuffixAdminCmd implements CommandExecutor, TabCompleter {
         String type = args[2].toLowerCase();
 
         if (!type.equals("all") && !type.equals("purchasable") && !type.equals("reset")) {
-            sender.sendMessage(plugin.getMessageManager().get("suffixadmin-usage"));
+            sender.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffixadmin-usage")));
             return false;
         }
 
@@ -56,13 +57,13 @@ public class SuffixAdminCmd implements CommandExecutor, TabCompleter {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 if (plugin.getDatabase().getUuidByUsername(playerName) == null && Bukkit.getPlayer(playerName) == null) {
-                    sender.sendMessage(plugin.getMessageManager().get("suffixadmin-unknown-player", "%player%", playerName));
+                    sender.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffixadmin-unknown-player", "%player%", playerName)));
                     playerExists.set(false);
                 } else {
                     plugin.getPurchasedManager().givePurchasedRole(sender, playerName, type);
                 }
             } catch (SQLException e) {
-                sender.sendMessage(plugin.getMessageManager().get("suffixadmin-db-error"));
+                sender.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffixadmin-db-error")));
                 e.printStackTrace();
             }
         });

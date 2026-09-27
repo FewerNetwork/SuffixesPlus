@@ -18,7 +18,7 @@ warn-db-error: "FEHLER: Verbindung zur Datenbank fehlgeschlagen"
 
 # /suffixes (SuffixesCmd)
 suffixes-no-suffixes: "<red>Es gibt keine Suffixe."
-suffixes-header-nonpurchasable: "<aqua><strikethrough>   </strikethrough><aqua> Nicht Kaufbare Suffixe <aqua><strikethrough>   </strikethrough>"
+suffixes-header-nonpurchasable: "<aqua><strikethrough>   </strikethrough><aqua> Nicht kaufbare Suffixe <aqua><strikethrough>   </strikethrough>"
 suffixes-header-purchasable: "<aqua><strikethrough>   </strikethrough><aqua> Kaufbare Suffixe <aqua><strikethrough>   </strikethrough>"
 suffixes-footer: "<aqua><strikethrough>                                    </strikethrough>"
 suffixes-entry: "<gray>Suffix: %suffix%"
@@ -27,7 +27,7 @@ suffixes-entry: "<gray>Suffix: %suffix%"
 suffixadmin-usage: "<yellow>Verwendung: /suffixadmin set <spieler> <all, purchasable, reset>"
 suffixadmin-unknown-player: "<red>Unbekannter Spieler %player%."
 suffixadmin-db-error: "<red>Beim Zugriff auf die Datenbank ist ein Fehler aufgetreten."
-suffixadmin-reload-success: "<green>SuffixesPlus Konfig und Sprachdateien erfolgreich neu geladen!"
+suffixadmin-reload-success: "<green>SuffixesPlus-Konfiguration und Sprachdateien wurden erfolgreich neu geladen!"
 
 # PurchasedManager
 purchased-invalid-arguments: "<red>Ungültige Argumente!"
@@ -91,13 +91,21 @@ gui-info-button: "<blue><bold>Info"
 gui-preview-click: "<aqua><bold> | </bold>Klicke, um dein Suffix vorzuschauen!"
 gui-preview-current-suffix-default: "&b&l | &bAktuelles Suffix: &an/a"
 gui-preview-current-suffix: "&b&l | &bAktuelles Suffix:%suffix%"
-gui-head-owned-suffixes: "<aqua><bold> | </bold>Besessene Suffixe: <bold>%count%</bold>"
+gui-head-owned-suffixes: "<aqua><bold> | </bold>Eigene Suffixe: <bold>%count%</bold>"
 gui-suffix-lore-suffix: "<aqua><bold> | </bold>Suffix: "
 gui-suffix-lore-preview: "<aqua><bold> | </bold>Vorschau: "
 gui-suffix-lore-active: "<aqua><bold> | </bold>Aktiv: <bold>%value%"
 gui-suffix-lore-purchasable: "<aqua><bold> | </bold>Kaufbar: <bold>%value%"
 gui-suffix-name-owned: "<green><bold>%suffix% Suffix"
 gui-suffix-name-unowned: "<red>%suffix% Suffix"
+
+gui-collections-toggle-on: "<gold><bold>Sammlungen: AN"
+gui-collections-toggle-off: "<gray><bold>Sammlungen: AUS"
+gui-collection-lore-count: "<aqua><bold> | </bold>Suffixe: <bold>%count%"
+gui-collection-lore-open: "<yellow><bold> | </bold>Klicke zum Öffnen"
+gui-collection-back: "<gold><bold>Zurück"
+gui-collection-title-page: "<gray>(Seite %page%/%maxPage%)"
+gui-collection-empty: "<red>Keines der Suffixe in %collection% existiert derzeit."
 
 # InventoryClickListener
 click-db-error: "<red>Beim Verbinden mit der Datenbank ist ein Fehler aufgetreten. Bitte versuche es später erneut."
@@ -114,6 +122,8 @@ click-suffix-removed: "&cSuffix entfernt:%suffix%"
 click-suffix-removed-divider: "&c&m                                               "
 click-suffix-added: "&a&lSuffix hinzugefügt:"
 click-suffix-added-divider: "&a&m                                               "
+click-suffix-not-owned: "&cDu besitzt das Suffix nicht:%suffix%"
+click-suffix-not-owned-divider: "&c&m                                               "
 
 # LuckPermsHook
 lp-clear-no-suffixes: "&cEs wurden keine Suffixe oder Gruppen zum Entfernen gefunden."
@@ -121,3 +131,18 @@ lp-clear-no-suffixes-divider: "&c&m                                             
 lp-clear-success: "&aAlle Suffixe und zugehörigen Gruppen wurden entfernt."
 lp-clear-success-divider: "&a&m                                                                     "
 lp-remove-nothing-removed: "&cEs wurde kein Suffix oder keine Gruppe entfernt."
+
+# Collections
+collection-usage: "<yellow>Verwendung: /tag <create <name> <tag> | remove <collection> | addincollection <collection> <suffix> | removefromcollection <collection> <suffix> | setcollectionlore <collection> <line1, line2, line3> | seticon <collection> <material>>"
+collection-exists: "&c%collection% existiert bereits"
+collection-does-not-exist: "&c%collection% existiert nicht"
+collection-created: "&a%collection% wurde mit dem Namen %tag% erstellt"
+collection-removed: "&a%collection% wurde erfolgreich entfernt"
+collection-suffix-not-in-collection: "&c%suffix% befindet sich nicht in der Sammlung %collection%"
+collection-suffix-already-in-collection: "&c%suffix% befindet sich bereits in der Sammlung %collection%"
+collection-suffix-added: "&a%suffix% wurde zur Sammlung %collection% hinzugefügt"
+collection-suffix-removed: "&a%suffix% wurde aus der Sammlung %collection% entfernt"
+collection-set-lore: "&aDie Lore von %collection% wurde auf %lore% gesetzt"
+
+collection-set-icon-sucess: "&aDas Icon von %collection% wurde erfolgreich auf %icon% geändert"
+collection-set-icon-failed: "&cDas Icon von %collection% konnte nicht auf %icon% geändert werden"

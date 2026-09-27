@@ -1,6 +1,7 @@
 package me.zombieman.dev.suffixesplus.managers;
 
 import me.zombieman.dev.suffixesplus.SuffixesPlus;
+import me.zombieman.dev.suffixesplus.utils.ChatUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -19,7 +20,7 @@ public class PurchasedManager {
     public void givePurchasedRole(CommandSender sender, String playerName, String all) {
 
         if (all == null) {
-            sender.sendMessage(plugin.getMessageManager().get("purchased-invalid-arguments"));
+            sender.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("purchased-invalid-arguments")));
             return;
         }
 
@@ -35,24 +36,24 @@ public class PurchasedManager {
                 if (target != null && uuid == null) uuid = target.getUniqueId();
 
                 if (uuid == null) {
-                    sender.sendMessage(plugin.getMessageManager().get("player-not-found"));
+                    sender.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("player-not-found")));
                     return;
                 }
 
                 plugin.getDatabase().updatePurchasable(uuid, all.replace("reset", "null"));
 
                 if (all.equalsIgnoreCase("reset")) {
-                    sender.sendMessage(plugin.getMessageManager().get("purchased-reset-success", "%player%", playerName));
+                    sender.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("purchased-reset-success", "%player%", playerName)));
                     return;
                 }
 
                 String typeWord = all.equalsIgnoreCase("purchasable") ? " purchasable " : " ";
-                sender.sendMessage(plugin.getMessageManager().get("purchased-give-success",
+                sender.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("purchased-give-success",
                         "%player%", playerName,
-                        "%type%", typeWord));
+                        "%type%", typeWord)));
 
             } catch (SQLException e) {
-                sender.sendMessage(plugin.getMessageManager().get("db-error"));
+                sender.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("db-error")));
                 e.printStackTrace();
             }
         });

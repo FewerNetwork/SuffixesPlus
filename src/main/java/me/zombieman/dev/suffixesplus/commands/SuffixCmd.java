@@ -31,7 +31,7 @@ public class SuffixCmd implements CommandExecutor, TabCompleter {
         if (!(sender instanceof Player player)) return false;
 
         if (!player.hasPermission("suffixsplus.command.suffix")) {
-            player.sendMessage(plugin.getMessageManager().get("no-permission"));
+            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("no-permission")));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return false;
         }
@@ -47,13 +47,13 @@ public class SuffixCmd implements CommandExecutor, TabCompleter {
 
                     plugin.getDatabase().updateNotification(player.getUniqueId(), newValue);
 
-                    player.sendMessage(plugin.getMessageManager().get(
-                            newValue ? "suffix-notification-on" : "suffix-notification-off"));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw(
+                            newValue ? "suffix-notification-on" : "suffix-notification-off")));
                     player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
 
                 } catch (SQLException e) {
                     e.printStackTrace();
-                    player.sendMessage(plugin.getMessageManager().get("db-error"));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("db-error")));
                     player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                 }
             });
@@ -71,7 +71,7 @@ public class SuffixCmd implements CommandExecutor, TabCompleter {
 
                 case "add": {
                     if (args.length < 2) {
-                        player.sendMessage(plugin.getMessageManager().get("suffix-add-usage"));
+                        player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-add-usage")));
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                         return false;
                     }
@@ -81,24 +81,24 @@ public class SuffixCmd implements CommandExecutor, TabCompleter {
                             .contains(configSuffix + suffix.replace(configSuffix, ""));
 
                     if (!contains) {
-                        player.sendMessage(plugin.getMessageManager().get("suffix-add-invalid", "%suffix%", suffix));
+                        player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-add-invalid", "%suffix%", suffix)));
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                         return false;
                     }
 
                     try {
                         if (plugin.getSuffixDatabase().getAllSuffixes().contains(suffix)) {
-                            player.sendMessage(plugin.getMessageManager().get("suffix-add-already-exists"));
+                            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-add-already-exists")));
                             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                             return false;
                         }
 
                         plugin.getSuffixDatabase().addSuffix(suffix);
-                        player.sendMessage(plugin.getMessageManager().get("suffix-add-success", "%suffix%", suffix));
+                        player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-add-success", "%suffix%", suffix)));
                         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
 
                     } catch (SQLException e) {
-                        player.sendMessage(plugin.getMessageManager().get("db-error"));
+                        player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("db-error")));
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                         throw new RuntimeException(e);
                     }
@@ -107,7 +107,7 @@ public class SuffixCmd implements CommandExecutor, TabCompleter {
 
                 case "remove": {
                     if (args.length < 2) {
-                        player.sendMessage(plugin.getMessageManager().get("suffix-remove-usage"));
+                        player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-remove-usage")));
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                         return false;
                     }
@@ -116,24 +116,24 @@ public class SuffixCmd implements CommandExecutor, TabCompleter {
 
                     if (!plugin.getLuckPermsHook().getAllSuffixes()
                             .contains(configSuffix + suffix.replace(configSuffix, ""))) {
-                        player.sendMessage(plugin.getMessageManager().get("suffix-remove-invalid", "%suffix%", suffix));
+                        player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-remove-invalid", "%suffix%", suffix)));
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                         return false;
                     }
 
                     try {
                         if (!plugin.getSuffixDatabase().getAllSuffixes().contains(suffix)) {
-                            player.sendMessage(plugin.getMessageManager().get("suffix-remove-not-in-list"));
+                            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-remove-not-in-list")));
                             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                             return false;
                         }
 
                         plugin.getSuffixDatabase().removeSuffix(suffix);
-                        player.sendMessage(plugin.getMessageManager().get("suffix-remove-success", "%suffix%", suffix));
+                        player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-remove-success", "%suffix%", suffix)));
                         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
 
                     } catch (SQLException e) {
-                        player.sendMessage(plugin.getMessageManager().get("db-error"));
+                        player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("db-error")));
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                         throw new RuntimeException(e);
                     }
@@ -143,10 +143,10 @@ public class SuffixCmd implements CommandExecutor, TabCompleter {
                 case "clear": {
                     try {
                         plugin.getSuffixDatabase().clearSuffixes();
-                        player.sendMessage(plugin.getMessageManager().get("suffix-clear-success"));
+                        player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-clear-success")));
                         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
                     } catch (SQLException e) {
-                        player.sendMessage(plugin.getMessageManager().get("db-error"));
+                        player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("db-error")));
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                         throw new RuntimeException(e);
                     }
@@ -155,22 +155,22 @@ public class SuffixCmd implements CommandExecutor, TabCompleter {
 
                 case "info": {
                     if (plugin.getLuckPermsHook().getAllSuffixes().isEmpty()) {
-                        player.sendMessage(plugin.getMessageManager().get("suffix-info-no-suffixes"));
+                        player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-info-no-suffixes")));
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                         return false;
                     }
 
                     try {
                         if (plugin.getSuffixDatabase().getAllSuffixes().isEmpty()) {
-                            player.sendMessage(plugin.getMessageManager().get("suffix-info-footer"));
-                            player.sendMessage(plugin.getMessageManager().get("suffix-info-no-suffixes"));
-                            player.sendMessage(plugin.getMessageManager().get("suffix-info-footer"));
+                            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-info-footer")));
+                            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-info-no-suffixes")));
+                            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-info-footer")));
                             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                             return false;
                         }
 
                         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
-                        player.sendMessage(plugin.getMessageManager().get("suffixes-header-nonpurchasable"));
+                        player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffixes-header-nonpurchasable")));
 
                         for (String s : plugin.getSuffixDatabase().getAllSuffixes()) {
                             String color = org.bukkit.ChatColor.translateAlternateColorCodes('&',
@@ -178,10 +178,10 @@ public class SuffixCmd implements CommandExecutor, TabCompleter {
                             player.sendMessage(ChatUtil.parseLegacyColors("&7Suffix: " + color));
                         }
 
-                        player.sendMessage(plugin.getMessageManager().get("suffix-info-footer"));
+                        player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-info-footer")));
 
                     } catch (SQLException e) {
-                        player.sendMessage(plugin.getMessageManager().get("db-error"));
+                        player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("db-error")));
                         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                         throw new RuntimeException(e);
                     }
@@ -192,54 +192,54 @@ public class SuffixCmd implements CommandExecutor, TabCompleter {
                     MiniMessage mm = MiniMessage.miniMessage();
                     String suffixArg = args.length >= 2 ? args[1] : "<suffix>";
 
-                    player.sendMessage(plugin.getMessageManager().get("suffix-help-divider"));
-                    player.sendMessage(plugin.getMessageManager().get("suffix-help-creating-title"));
-                    player.sendMessage(plugin.getMessageManager().get("suffix-help-step1", "%suffix%", suffixArg)
-                            .hoverEvent(HoverEvent.showText(plugin.getMessageManager().get("suffix-help-click-here")))
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-divider")));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-creating-title")));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-step1", "%suffix%", suffixArg))
+                            .hoverEvent(HoverEvent.showText(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-click-here"))))
                             .clickEvent(ClickEvent.suggestCommand("/lp creategroup suffix_" + suffixArg)));
-                    player.sendMessage(plugin.getMessageManager().get("suffix-help-step2")
-                            .hoverEvent(HoverEvent.showText(plugin.getMessageManager().get("suffix-help-click-here")))
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-step2"))
+                            .hoverEvent(HoverEvent.showText(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-click-here"))))
                             .clickEvent(ClickEvent.suggestCommand("/lp editor")));
-                    player.sendMessage(plugin.getMessageManager().get("suffix-help-step3"));
-                    player.sendMessage(plugin.getMessageManager().get("suffix-help-divider"));
-                    player.sendMessage(plugin.getMessageManager().get("suffix-help-nonpurchasable-title"));
-                    player.sendMessage(plugin.getMessageManager().get("suffix-help-nonpurchasable-step1", "%suffix%", suffixArg)
-                            .hoverEvent(HoverEvent.showText(plugin.getMessageManager().get("suffix-help-click-here")))
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-step3")));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-divider")));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-nonpurchasable-title")));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-nonpurchasable-step1", "%suffix%", suffixArg))
+                            .hoverEvent(HoverEvent.showText(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-click-here"))))
                             .clickEvent(ClickEvent.suggestCommand("/suffix add " + suffixArg)));
-                    player.sendMessage(plugin.getMessageManager().get("suffix-help-divider"));
-                    player.sendMessage(plugin.getMessageManager().get("suffix-help-checking-title"));
-                    player.sendMessage(plugin.getMessageManager().get("suffix-help-checking-step1")
-                            .hoverEvent(HoverEvent.showText(plugin.getMessageManager().get("suffix-help-click-here")))
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-divider")));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-checking-title")));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-checking-step1"))
+                            .hoverEvent(HoverEvent.showText(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-click-here"))))
                             .clickEvent(ClickEvent.suggestCommand("/suffixes")));
-                    player.sendMessage(plugin.getMessageManager().get("suffix-help-divider"));
-                    player.sendMessage(plugin.getMessageManager().get("suffix-help-permission-title"));
-                    player.sendMessage(plugin.getMessageManager().get("suffix-help-permission-step1")
-                            .hoverEvent(HoverEvent.showText(plugin.getMessageManager().get("suffix-help-click-here")))
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-divider")));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-permission-title")));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-permission-step1"))
+                            .hoverEvent(HoverEvent.showText(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-click-here"))))
                             .clickEvent(ClickEvent.suggestCommand("/lp user <player> permission setsuffixsplus.suffix." + suffixArg)));
-                    player.sendMessage(plugin.getMessageManager().get("suffix-help-permission-step2", "%suffix%", suffixArg)
-                            .hoverEvent(HoverEvent.showText(plugin.getMessageManager().get("suffix-help-click-here")))
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-permission-step2", "%suffix%", suffixArg))
+                            .hoverEvent(HoverEvent.showText(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-help-click-here"))))
                             .clickEvent(ClickEvent.suggestCommand("/lp user <player> permission setsuffixsplus.suffix." + suffixArg)));
-                    player.sendMessage(plugin.getMessageManager().get("suffix-support-divider"));
-                    player.sendMessage(plugin.getMessageManager().get("suffix-support-label")
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-support-divider")));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-support-label"))
                             .clickEvent(ClickEvent.openUrl("https://discord.gg/SuypvRBa4c"))
-                            .hoverEvent(HoverEvent.showText(plugin.getMessageManager().get("suffix-support-hover"))));
-                    player.sendMessage(plugin.getMessageManager().get("suffix-support-divider"));
+                            .hoverEvent(HoverEvent.showText(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-support-hover")))));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-support-divider")));
                     player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
                     return true;
                 }
 
                 case "support": {
-                    player.sendMessage(plugin.getMessageManager().get("suffix-support-divider"));
-                    player.sendMessage(plugin.getMessageManager().get("suffix-support-label")
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-support-divider")));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-support-label"))
                             .clickEvent(ClickEvent.openUrl("https://discord.gg/SuypvRBa4c"))
-                            .hoverEvent(HoverEvent.showText(plugin.getMessageManager().get("suffix-support-hover"))));
-                    player.sendMessage(plugin.getMessageManager().get("suffix-support-divider"));
+                            .hoverEvent(HoverEvent.showText(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-support-hover")))));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-support-divider")));
                     player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
                     return true;
                 }
 
                 default: {
-                    player.sendMessage(plugin.getMessageManager().get("suffix-unknown-subcommand"));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffix-unknown-subcommand")));
                     return false;
                 }
             }
@@ -249,7 +249,7 @@ public class SuffixCmd implements CommandExecutor, TabCompleter {
         try {
             plugin.guiManager.openSuffixGui(player, 0);
         } catch (SQLException e) {
-            player.sendMessage(plugin.getMessageManager().get("db-error"));
+            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("db-error")));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return false;
         }

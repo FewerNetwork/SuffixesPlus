@@ -6,6 +6,7 @@ import me.zombieman.dev.suffixesplus.hooks.LuckPermsHook;
 import me.zombieman.dev.suffixesplus.utils.ChatUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -65,14 +66,14 @@ public class InventoryClickListener implements Listener {
                 try {
                     assignRandomSuffix(player);
                 } catch (SQLException e) {
-                    player.sendMessage(plugin.getMessageManager().get("click-db-error"));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("click-db-error")));
                     plugin.getLogger().warning("Database Warning: " + e.getMessage());
                 }
                 break;
 
             case "infoButton":
                 player.closeInventory();
-                player.sendMessage(plugin.getMessageManager().get("click-info"));
+                player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("click-info")));
                 break;
 
             case "suffixItem":
@@ -80,20 +81,62 @@ public class InventoryClickListener implements Listener {
                 handleSuffixSelection(player, itemMeta);
                 break;
 
-            case "next":
+            case "toggleCollectionsView":
+                boolean newState = !plugin.guiManager.isCollectionsViewEnabled(player);
+                plugin.guiManager.setCollectionsViewEnabled(player, newState);
                 try {
-                    plugin.guiManager.openSuffixGui(player, currentPage + 1);
+                    plugin.guiManager.openSuffixGui(player, 0);
                 } catch (SQLException e) {
-                    player.sendMessage(plugin.getMessageManager().get("click-db-error"));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("click-db-error")));
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                }
+                break;
+
+            case "collectionItem":
+                String openCollectionId = getCollectionId(itemMeta);
+                if (openCollectionId != null) {
+                    try {
+                        plugin.guiManager.openCollectionGui(player, openCollectionId, 0);
+                    } catch (SQLException e) {
+                        player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("click-db-error")));
+                        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                    }
+                }
+                break;
+
+            case "backToCollections":
+                try {
+                    plugin.guiManager.openSuffixGui(player, 0);
+                } catch (SQLException e) {
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("click-db-error")));
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                }
+                break;
+
+            case "next":
+                String nextCollectionId = getCollectionId(itemMeta);
+                try {
+                    if (nextCollectionId != null) {
+                        plugin.guiManager.openCollectionGui(player, nextCollectionId, currentPage + 1);
+                    } else {
+                        plugin.guiManager.openSuffixGui(player, currentPage + 1);
+                    }
+                } catch (SQLException e) {
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("click-db-error")));
                     player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                 }
                 break;
 
             case "previous":
+                String previousCollectionId = getCollectionId(itemMeta);
                 try {
-                    plugin.guiManager.openSuffixGui(player, currentPage - 1);
+                    if (previousCollectionId != null) {
+                        plugin.guiManager.openCollectionGui(player, previousCollectionId, currentPage - 1);
+                    } else {
+                        plugin.guiManager.openSuffixGui(player, currentPage - 1);
+                    }
                 } catch (SQLException e) {
-                    player.sendMessage(plugin.getMessageManager().get("click-db-error"));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("click-db-error")));
                     player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                 }
                 break;
@@ -105,12 +148,12 @@ public class InventoryClickListener implements Listener {
                                 .getPlayer(player.getUniqueId(), player.getName()).getCurrentSuffix();
 
                         if (currentSuffixFromDB == null || currentSuffixFromDB.equalsIgnoreCase("n/a")) {
-                            player.sendMessage(plugin.getMessageManager().get("click-preview-no-suffix"));
+                            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("click-preview-no-suffix")));
                             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                             return;
                         }
 
-                        player.sendMessage(plugin.getMessageManager().get("click-preview-header"));
+                        player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("click-preview-header")));
                         player.sendMessage(Component.empty());
 
                         currentSuffixFromDB = plugin.getConfig().getString("suffix.prefix", "suffix_")
@@ -129,7 +172,7 @@ public class InventoryClickListener implements Listener {
                         player.closeInventory();
 
                     } catch (SQLException e) {
-                        player.sendMessage(plugin.getMessageManager().get("click-db-error"));
+                        player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("click-db-error")));
                         e.printStackTrace();
                     }
                 });
@@ -140,6 +183,12 @@ public class InventoryClickListener implements Listener {
         }
     }
 
+    private String getCollectionId(ItemMeta itemMeta) {
+        NamespacedKey collectionKey = new NamespacedKey(plugin, "collectionId");
+        if (!itemMeta.getPersistentDataContainer().has(collectionKey, PersistentDataType.STRING)) return null;
+        return itemMeta.getPersistentDataContainer().get(collectionKey, PersistentDataType.STRING);
+    }
+
     private void clearAllSuffixes(Player player) {
         luckPermsHook.clearAllSuffixes(player.getUniqueId(), true);
     }
@@ -148,7 +197,7 @@ public class InventoryClickListener implements Listener {
         List<String> ownedSuffixes = luckPermsHook.getPlayerSuffixes(player.getUniqueId());
 
         if (ownedSuffixes.isEmpty()) {
-            player.sendMessage(plugin.getMessageManager().get("click-no-suffixes-random"));
+            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("click-no-suffixes-random")));
             return;
         }
 
@@ -202,7 +251,7 @@ public class InventoryClickListener implements Listener {
 
         String suffix = itemMeta.getPersistentDataContainer().get(suffixKey, PersistentDataType.STRING);
         if (suffix == null) {
-            player.sendMessage(plugin.getMessageManager().get("click-no-valid-suffix"));
+            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("click-no-valid-suffix")));
             return;
         }
 
@@ -227,7 +276,7 @@ public class InventoryClickListener implements Listener {
                                 handleSuffixPurchase(player, cleanedSuffix);
                             }
                         } catch (SQLException e) {
-                            player.sendMessage(plugin.getMessageManager().get("db-error"));
+                            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("db-error")));
                             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                             e.printStackTrace();
                         }
@@ -236,6 +285,7 @@ public class InventoryClickListener implements Listener {
     }
 
     private void handleSuffixAssignment(Player player, String cleanedSuffix) {
+
         if (luckPermsHook.hasSuffix(player.getUniqueId(), cleanedSuffix)) {
             luckPermsHook.removeSuffix(player, cleanedSuffix);
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);
@@ -280,29 +330,27 @@ public class InventoryClickListener implements Listener {
     private void handleSuffixPurchase(Player player, String cleanedSuffix) {
         try {
             if (!luckPermsHook.isPurchasable(cleanedSuffix)) {
-                player.sendMessage(plugin.getMessageManager().get("click-not-purchasable", "%suffix%", cleanedSuffix));
+                player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("click-not-purchasable", "%suffix%", cleanedSuffix)));
                 player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                 return;
             }
         } catch (SQLException e) {
-            player.sendMessage(plugin.getMessageManager().get("click-purchase-check-error"));
+            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("click-purchase-check-error")));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             e.printStackTrace();
             return;
         }
 
         for (String message : plugin.getConfig().getStringList("suffix.purchaseMessage")) {
-            net.kyori.adventure.text.Component hoverText = MiniMessage.miniMessage().deserialize(
-                    plugin.getConfig().getString("suffix.purchaseHoverMessage",
-                                    "<aqua>Click here to purchase the %suffix% suffix!")
-                            .replace("%suffix%", cleanedSuffix.replace(
-                                    plugin.getConfig().getString("suffix.prefix", "suffix_"), "")));
+
+            Component hoverText = ChatUtil.parseLegacyColors(plugin.getConfig().getString("suffix.purchaseHoverMessage",
+                            "<aqua>Click here to purchase the %suffix% suffix!")
+                    .replace("%suffix%", cleanedSuffix.replace(
+                            plugin.getConfig().getString("suffix.prefix", "suffix_"), "")));
 
             ClickEvent clickEvent = ClickEvent.openUrl(plugin.getConfig().getString("suffix.link", "https://"));
 
-            player.sendMessage(MiniMessage.miniMessage().deserialize(
-                            message.replace("%suffix%", cleanedSuffix.replace(
-                                    plugin.getConfig().getString("suffix.prefix", "suffix_"), "")))
+            player.sendMessage(ChatUtil.parseLegacyColors(message.replace("%suffix%", cleanedSuffix.replace(plugin.getConfig().getString("suffix.prefix", "suffix_"), "")))
                     .hoverEvent(hoverText)
                     .clickEvent(clickEvent));
         }

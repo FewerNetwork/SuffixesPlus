@@ -24,13 +24,13 @@ public class SuffixesCmd implements CommandExecutor {
         if (!(sender instanceof Player player)) return false;
 
         if (!player.hasPermission("suffixsplus.command.suffix")) {
-            player.sendMessage(plugin.getMessageManager().get("no-permission"));
+            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("no-permission")));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return false;
         }
 
         if (plugin.getLuckPermsHook().getAllSuffixes().isEmpty()) {
-            player.sendMessage(plugin.getMessageManager().get("suffixes-no-suffixes"));
+            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffixes-no-suffixes")));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             return false;
         }
@@ -39,30 +39,30 @@ public class SuffixesCmd implements CommandExecutor {
             String configSuffix = plugin.getConfig().getString("suffix.prefix", "suffix_");
 
             if (!plugin.getSuffixDatabase().getAllSuffixes().isEmpty()) {
-                player.sendMessage(plugin.getMessageManager().get("suffixes-header-nonpurchasable"));
+                player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffixes-header-nonpurchasable")));
 
                 for (String s : plugin.getSuffixDatabase().getAllSuffixes()) {
                     String color = ChatColor.translateAlternateColorCodes('&',
                             plugin.getLuckPermsHook().getGroupSuffixColor(configSuffix + s.replace(configSuffix, "")));
-                    player.sendMessage(plugin.getMessageManager().get("suffixes-entry", "%suffix%", color));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffixes-entry", "%suffix%", color)));
                 }
             }
 
-            player.sendMessage(plugin.getMessageManager().get("suffixes-header-purchasable"));
+            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffixes-header-purchasable")));
 
             for (String s : plugin.getLuckPermsHook().getAllSuffixes()) {
                 s = configSuffix + s.replace(configSuffix, "");
                 if (!plugin.getSuffixDatabase().getAllSuffixes().contains(s.replace(configSuffix, ""))) {
                     String color = ChatColor.translateAlternateColorCodes('&',
                             plugin.getLuckPermsHook().getGroupSuffixColor(s));
-                    player.sendMessage(plugin.getMessageManager().get("suffixes-entry", "%suffix%", color));
+                    player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffixes-entry", "%suffix%", color)));
                 }
             }
 
-            player.sendMessage(plugin.getMessageManager().get("suffixes-footer"));
+            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("suffixes-footer")));
 
         } catch (SQLException e) {
-            player.sendMessage(plugin.getMessageManager().get("db-error"));
+            player.sendMessage(ChatUtil.parseLegacyColors(plugin.getMessageManager().getRaw("db-error")));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
             throw new RuntimeException(e);
         }

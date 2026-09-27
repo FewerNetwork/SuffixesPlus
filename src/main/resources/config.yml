@@ -6,6 +6,7 @@ commands:
   suffix: suffix
   suffixes: suffixes
   suffixadmin: suffixadmin
+  collection: tag
 
 database:
   username: USERNAME

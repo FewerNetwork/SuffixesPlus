@@ -99,6 +99,14 @@ gui-suffix-lore-purchasable: "<aqua><bold> | </bold>Purchasable: <bold>%value%"
 gui-suffix-name-owned: "<green><bold>%suffix% Suffix"
 gui-suffix-name-unowned: "<red>%suffix% Suffix"
 
+gui-collections-toggle-on: "<gold><bold>Collections: ON"
+gui-collections-toggle-off: "<gray><bold>Collections: OFF"
+gui-collection-lore-count: "<aqua><bold> | </bold>Suffixes: <bold>%count%"
+gui-collection-lore-open: "<yellow><bold> | </bold>Click to open"
+gui-collection-back: "<gold><bold>Back"
+gui-collection-title-page: "<gray>(Page %page%/%maxPage%)"
+gui-collection-empty: "<red>None of the suffixes in %collection% exist right now."
+
 # InventoryClickListener
 click-db-error: "<red>There was an error connecting to the database, please try again later."
 click-info: "<gold>Suffix Info: <white>Select a suffix to customize your player tag."
@@ -114,6 +122,8 @@ click-suffix-removed: "&cSuffix removed:%suffix%"
 click-suffix-removed-divider: "&c&m                                               "
 click-suffix-added: "&a&lSuffix added:"
 click-suffix-added-divider: "&a&m                                               "
+click-suffix-not-owned: "&cYou don't own the suffix:%suffix%"
+click-suffix-not-owned-divider: "&c&m                                               "
 
 # LuckPermsHook
 lp-clear-no-suffixes: "&cNo suffixes or groups were found to clear."
@@ -121,3 +131,18 @@ lp-clear-no-suffixes-divider: "&c&m                                             
 lp-clear-success: "&aAll suffixes and related groups have been cleared."
 lp-clear-success-divider: "&a&m                                                                     "
 lp-remove-nothing-removed: "&cNo suffix or group was removed."
+
+# Collections
+collection-usage: "<yellow>Usage: /tag <create <name> <tag> | remove <collection> | addincollection <collection> <suffix> | removefromcollection <collection> <suffix> | setcollectionlore <collection> <line1, line2, line3> | seticon <collection> <material>>"
+collection-exists: "&c%collection% already exists"
+collection-does-not-exist: "&c%collection% doesn't exist"
+collection-created: "&a%collection% was created with the name %tag%"
+collection-removed: "&a%collection% was successfully removed"
+collection-suffix-not-in-collection: "&c%suffix% isn't in the collection %collection%"
+collection-suffix-already-in-collection: "&c%suffix% is already in the collection %collection%"
+collection-suffix-added: "&a%suffix% was added to the collection %collection%"
+collection-suffix-removed: "&a%suffix% was removed from the collection %collection%"
+collection-set-lore: "&a%collection%'s lore is now set to %lore%"
+
+collection-set-icon-sucess: "&aSuccessfully updated %collection%'s icon to %icon%"
+collection-set-icon-failed: "&cFailed to update %collection%'s icon to %icon%"

@@ -1,8 +1,11 @@
 package me.zombieman.dev.suffixesplus;
 
+import me.zombieman.dev.suffixesplus.commands.CollectionCmd;
 import me.zombieman.dev.suffixesplus.commands.SuffixAdminCmd;
 import me.zombieman.dev.suffixesplus.commands.SuffixCmd;
 import me.zombieman.dev.suffixesplus.commands.SuffixesCmd;
+import me.zombieman.dev.suffixesplus.databases.CollectionData;
+import me.zombieman.dev.suffixesplus.databases.CollectionDatabase;
 import me.zombieman.dev.suffixesplus.databases.PlayerDatabase;
 import me.zombieman.dev.suffixesplus.databases.SuffixDatabase;
 import me.zombieman.dev.suffixesplus.managers.DataManager;
@@ -36,6 +39,7 @@ public final class SuffixesPlus extends JavaPlugin {
 
     private LuckPermsHook luckPermsHook;
     private PlayerDatabase database;
+    private CollectionDatabase collectionDatabase;
     private SuffixDatabase suffixDatabase;
     private TempSuffixManager tempSuffixManager;
     private PurchasedManager purchasedManager;
@@ -79,6 +83,7 @@ public final class SuffixesPlus extends JavaPlugin {
 
         try {
             database = new PlayerDatabase(url, username, password);
+            collectionDatabase = new CollectionDatabase(url, username, password);
             suffixDatabase = new SuffixDatabase(url, username, password);
         } catch (SQLException e) {
             e.printStackTrace();
@@ -104,14 +109,17 @@ public final class SuffixesPlus extends JavaPlugin {
         SuffixCmd suffixCmd = new SuffixCmd(this);
         SuffixesCmd suffixesCmd = new SuffixesCmd(this);
         SuffixAdminCmd suffixAdminCmd = new SuffixAdminCmd(this);
+        CollectionCmd collectionCmd = new CollectionCmd(this, luckPermsHook);
 
         String suffixName = getConfig().getString("commands.suffix", "suffix");
         String suffixesName = getConfig().getString("commands.suffixes", "suffixes");
         String suffixAdminName = getConfig().getString("commands.suffixadmin", "suffixadmin");
+        String collectionCmdName = getConfig().getString("commands.collection", "tag");
 
         registerCommand(suffixName, suffixCmd, suffixCmd);
         registerCommand(suffixesName, suffixesCmd, null);
         registerCommand(suffixAdminName, suffixAdminCmd, suffixAdminCmd);
+        registerCommand(collectionCmdName, collectionCmd, collectionCmd);
 
         checkIfPlayerHasSuffix();
     }
@@ -215,6 +223,7 @@ public final class SuffixesPlus extends JavaPlugin {
     public MessageManager getMessageManager() { return messageManager; }
     public LuckPermsHook getLuckPermsHook() { return luckPermsHook; }
     public PlayerDatabase getDatabase() { return database; }
+    public CollectionDatabase getCollectionDatabase() { return collectionDatabase; }
     public DataManager getDataManager() { return dataManager; }
     public SuffixDatabase getSuffixDatabase() { return suffixDatabase; }
     public PurchasedManager getPurchasedManager() { return purchasedManager; }
