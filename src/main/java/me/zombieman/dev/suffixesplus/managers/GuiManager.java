@@ -333,7 +333,7 @@ public class GuiManager {
 
         if (ownsSuffix) {
             suffixItem = new ItemStack(Material.NAME_TAG);
-            meta.addEnchant(org.bukkit.enchantments.Enchantment.DURABILITY, 1, true);
+            meta.addEnchant(org.bukkit.enchantments.Enchantment.UNBREAKING, 1, true);
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         }
 
