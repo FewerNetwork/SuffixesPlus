@@ -63,9 +63,15 @@ public final class SuffixesPlus extends JavaPlugin {
 
         luckPermsAPI = new LuckPermsAPI(this);
 
-        String username = this.getConfig().getString("database.username");
-        String password = this.getConfig().getString("database.password");
-        String url = this.getConfig().getString("database.url");
+        org.bukkit.configuration.ConfigurationSection databaseConfig;
+        try { databaseConfig = DatabaseSettings.load(getDataFolder().toPath(), getConfig()); }
+        catch (java.io.IOException exception) {
+            getLogger().severe("Cannot read suffix database settings: " + exception.getMessage());
+            getServer().getPluginManager().disablePlugin(this); return;
+        }
+        String username = databaseConfig.getString("username");
+        String password = databaseConfig.getString("password");
+        String url = databaseConfig.getString("url");
 
         try {
             database = new PlayerDatabase(url, username, password);
@@ -160,13 +166,13 @@ public final class SuffixesPlus extends JavaPlugin {
                                 <green><strikethrough>                                             </strikethrough>"""
                                     .replace("%ownedSuffixes%", String.valueOf(ownedSuffixes)))
                             .hoverEvent(HoverEvent.showText(MiniMessage.miniMessage().deserialize("<green>Click to view suffixes")))
-                            .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.RUN_COMMAND, "/suffix")));
+                            .clickEvent(ClickEvent.runCommand("/suffix")));
 
                     if (getConfig().getBoolean("suffix.notification", true)) {
                         player.sendMessage(MiniMessage.miniMessage().deserialize("""
                                         <gray>/suffix notification (to turn off notifications)""")
                                 .hoverEvent(HoverEvent.showText(MiniMessage.miniMessage().deserialize("<green>Click to turn of suffix notifications")))
-                                .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.RUN_COMMAND, "/suffix notification")));
+                                .clickEvent(ClickEvent.runCommand("/suffix notification")));
                     }
 
                     player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 1.0f);

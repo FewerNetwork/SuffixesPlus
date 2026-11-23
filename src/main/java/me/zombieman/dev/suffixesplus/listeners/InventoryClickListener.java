@@ -286,7 +286,7 @@ public class InventoryClickListener implements Listener {
         for (String message : plugin.getConfig().getStringList("suffix.purchaseMessage")) {
             Component deserialize = MiniMessage.miniMessage().deserialize(plugin.getConfig().getString("suffix.purchaseHoverMessage", "<aqua>Click here to purchase the %suffix% <aqua>suffix!")
                     .replace("%suffix%", cleanedSuffix.replace(plugin.getConfig().getString("suffix.prefix", "suffix_"), "")));
-            ClickEvent event = ClickEvent.clickEvent(ClickEvent.Action.OPEN_URL, plugin.getConfig().getString("suffix.link", "https://store.fewer.live/"));
+            ClickEvent event = ClickEvent.openUrl( plugin.getConfig().getString("suffix.link", "https://store.fewer.live/"));
 
             player.sendMessage(MiniMessage.miniMessage().deserialize(message.replace("%suffix%", cleanedSuffix.replace(plugin.getConfig().getString("suffix.prefix", "suffix_"), "")))
                     .hoverEvent(deserialize)

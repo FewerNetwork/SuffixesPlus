@@ -8,3 +8,4 @@ commands:
   suffixes:
   suffixadmin:
     permission: suffixsplus.command.suffixadmin
+depend: [LuckPerms, PlaceholderAPI]
